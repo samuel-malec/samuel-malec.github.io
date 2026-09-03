@@ -14,7 +14,7 @@ function HomepageHeader() {
           Hello there 🐙
         </Heading>
         <p className={styles.subtitle}>
-          Mostly just schizo rants.
+          This is my personal blog - all opinions provided here are my own.
         </p>
         <div className={styles.buttons}>
           <Link className="button button--primary button--lg" to="/blog">
@@ -37,9 +37,13 @@ export default function Home(): ReactNode {
         <section id="about" className={styles.section}>
           <div className="container">
             <div className={styles.card}>
-              <Heading as="h2">Header</Heading>
+              <Heading as="h2">Whoami</Heading>
               <p>
-                Body
+                I'm Sam, a 23 year old computer science student at FI MUNI in Brno.
+                Ever since I started programming, I've wanted to write my own programming language.
+                Back then, the idea of creating a language seemed really cool to me.
+                I guess this curiosity eventually led me to explore compiler development, programming language design, and static analysis.
+                This blog is a place where I share notes, ideas, and things I learn along the way that I think others might find interesting.
               </p>
             </div>
           </div>
