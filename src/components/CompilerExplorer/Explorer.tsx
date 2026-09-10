@@ -37,7 +37,7 @@ const TEXT_TABS: {key: Exclude<TabKey, 'ssa'>; label: string}[] = [
 
 export default function Explorer({defaultSource}: CompilerExplorerProps): ReactNode {
   const {colorMode} = useColorMode();
-  const wasmJsUrl = useBaseUrl('/wasm/compiler-dungeon.js');
+  const wasmJsUrl = useBaseUrl('/wasm/compiler-dungeon-wasm.js');
   const wasmDirUrl = useBaseUrl('/wasm/');
 
   const moduleRef = useRef<CompilerModule | null>(null);
