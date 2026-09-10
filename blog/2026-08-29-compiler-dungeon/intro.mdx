@@ -6,8 +6,12 @@ tags: [compiler-dungeon]
 
 import CompilerExplorer from '@site/src/components/CompilerExplorer';
 
-This is a 
-Try it yourself — edit the source below and watch it move through the lexer, parser, and type checker in real time.
+This is an educational compiler I built because I wanted to have a little playground for my own experiments.
+The source code is on [github](https://github.com/samuel-malec/compiler-dungeon).
+I am planning to do some technical write-ups on the topics I am dealing with while working on this project. 
+In the meantime, I wanted to create an interactive IR visualizer that would depict the different representations of a program during the compilation pipeline.
+You can check the language overview [here](https://github.com/samuel-malec/compiler-dungeon/blob/main/docs/LANGUANGE.md)
+and you can try it out for yourself below:
 
 <CompilerExplorer defaultSource={`def max(a: i32, b: i32) -> i32 {
     if a < b {
