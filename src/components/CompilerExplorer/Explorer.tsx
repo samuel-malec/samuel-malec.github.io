@@ -2,7 +2,6 @@ import {useEffect, useRef, useState} from 'react';
 import type {ReactNode} from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import {cpp} from '@codemirror/lang-cpp';
-import {Graphviz} from '@hpcc-js/wasm-graphviz';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import {useColorMode} from '@docusaurus/theme-common';
 import type {CompilerExplorerProps} from './index';
@@ -13,7 +12,7 @@ interface CompileResult {
   ast: string;
   hir: string;
   ir: string;
-  cfg_dot: string;
+  cfg: string;
   stage: string;
   error: string;
 }
@@ -26,14 +25,19 @@ type ModuleFactory = (opts?: {
   locateFile?: (path: string) => string;
 }) => Promise<CompilerModule>;
 
-type TabKey = 'tokens' | 'ast' | 'hir' | 'ir' | 'ssa';
+type TabKey = 'tokens' | 'ast' | 'hir' | 'ir' | 'cfg';
 
-const TEXT_TABS: {key: Exclude<TabKey, 'ssa'>; label: string}[] = [
+const TABS: {key: TabKey; label: string}[] = [
   {key: 'tokens', label: 'Tokens'},
   {key: 'ast', label: 'AST'},
   {key: 'hir', label: 'HIR'},
   {key: 'ir', label: 'IR'},
+  {key: 'cfg', label: 'SSA'},
 ];
+
+const EMPTY_RESULT: CompileResult = {
+  tokens: '', ast: '', hir: '', ir: '', cfg: '', stage: '', error: '',
+};
 
 export default function Explorer({defaultSource}: CompilerExplorerProps): ReactNode {
   const {colorMode} = useColorMode();
@@ -41,29 +45,24 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
   const wasmDirUrl = useBaseUrl('/wasm/');
 
   const moduleRef = useRef<CompilerModule | null>(null);
-  const graphvizRef = useRef<Graphviz | null>(null);
 
   const [source, setSource] = useState(defaultSource);
   const [activeTab, setActiveTab] = useState<TabKey>('ir');
   const [result, setResult] = useState<CompileResult | null>(null);
-  const [svg, setSvg] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([
-      import(/* webpackIgnore: true */ wasmJsUrl).then((mod) => {
+    import(/* webpackIgnore: true */ wasmJsUrl)
+      .then((mod) => {
         const factory = mod.default as ModuleFactory;
         return factory({locateFile: (path) => wasmDirUrl + path});
-      }),
-      Graphviz.load(),
-    ])
-      .then(([compilerModule, graphviz]) => {
+      })
+      .then((compilerModule) => {
         if (cancelled) return;
         moduleRef.current = compilerModule;
-        graphvizRef.current = graphviz;
         setReady(true);
       })
       .catch((err: unknown) => {
@@ -85,12 +84,7 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
         setResult(moduleRef.current!.compile(source));
       } catch (err) {
         setResult({
-          tokens: '',
-          ast: '',
-          hir: '',
-          ir: '',
-          cfg_dot: '',
-          stage: '',
+          ...EMPTY_RESULT,
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -98,18 +92,6 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
 
     return () => clearTimeout(handle);
   }, [source, ready]);
-
-  useEffect(() => {
-    if (!result?.cfg_dot || !graphvizRef.current) {
-      setSvg(null);
-      return;
-    }
-    try {
-      setSvg(graphvizRef.current.layout(result.cfg_dot, 'svg', 'dot'));
-    } catch {
-      setSvg(null);
-    }
-  }, [result?.cfg_dot]);
 
   if (loadError) {
     return (
@@ -133,7 +115,7 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
 
       <div className={styles.outputPane}>
         <div className={styles.tabs}>
-          {TEXT_TABS.map(({key, label}) => (
+          {TABS.map(({key, label}) => (
             <button
               key={key}
               type="button"
@@ -142,12 +124,6 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
               {label}
             </button>
           ))}
-          <button
-            type="button"
-            className={activeTab === 'ssa' ? styles.tabActive : styles.tab}
-            onClick={() => setActiveTab('ssa')}>
-            SSA
-          </button>
         </div>
 
         {!ready && <div className={styles.loading}>Loading compiler…</div>}
@@ -161,21 +137,7 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
           </div>
         )}
 
-        {ready && activeTab !== 'ssa' && (
-          <pre className={styles.output}>{result?.[activeTab] ?? ''}</pre>
-        )}
-
-        {ready && activeTab === 'ssa' && (
-          svg ? (
-            <div
-              className={styles.svgOutput}
-              // eslint-disable-next-line react/no-danger
-              dangerouslySetInnerHTML={{__html: svg}}
-            />
-          ) : (
-            <div className={styles.output}>No SSA graph yet.</div>
-          )
-        )}
+        {ready && <pre className={styles.output}>{result?.[activeTab] ?? ''}</pre>}
       </div>
     </div>
   );

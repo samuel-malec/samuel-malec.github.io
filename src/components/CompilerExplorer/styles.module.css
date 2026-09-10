@@ -66,22 +66,6 @@
   white-space: pre;
 }
 
-.svgOutput {
-  flex: 1;
-  min-height: 360px;
-  max-height: 360px;
-  overflow: auto;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-global-radius);
-  background: white;
-  padding: 0.5rem;
-}
-
-.svgOutput :global(svg) {
-  max-width: 100%;
-  height: auto;
-}
-
 .loading {
   padding: 1rem;
   color: var(--ifm-color-emphasis-600);

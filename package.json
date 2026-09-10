@@ -19,7 +19,6 @@
     "@docusaurus/core": "3.10.2",
     "@docusaurus/faster": "3.10.2",
     "@docusaurus/preset-classic": "3.10.2",
-    "@hpcc-js/wasm-graphviz": "^1.29.0",
     "@mdx-js/react": "^3.0.0",
     "@uiw/react-codemirror": "^4.25.11",
     "clsx": "^2.0.0",
