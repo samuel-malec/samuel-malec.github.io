@@ -1,0 +1,14 @@
+# Frontend
+
+import CompilerExplorer from '@site/src/components/CompilerExplorer';
+
+Try it yourself — edit the source below and watch it move through the lexer, parser, and type checker in real time.
+
+<CompilerExplorer defaultSource={`def max(a: i32, b: i32) -> i32 {
+    if a < b {
+        b
+    } else {
+        a
+    }
+}
+`} />

@@ -1,0 +1,23 @@
+# HIR
+
+The purpose of Higher Intermediate Representation is twofold. On one hand, it is supposed to represent a somewhat cannonicalized form of kerosene programs.
+
+
+
+```
+xmalec@xmalec:~/compiler-dungeon/cmake-build-debug$ ./compiler-dungeon ../test/parser/good/unary_ops.ks --emit-ast --emit-hir
+AST
+Fn main() -> unit
+    Block
+    Let x (imut) : <inferred>
+      init:
+        Unary '+'
+          Unary '+'
+            NumLit 5
+HIR:
+Function #0
+  Block : unit
+    Let #1
+      value:
+        IntLit 5 : i32
+```

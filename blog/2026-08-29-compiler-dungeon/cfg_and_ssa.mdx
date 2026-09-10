@@ -1,0 +1,14 @@
+# CFG and SSA
+
+import CompilerExplorer from '@site/src/components/CompilerExplorer';
+
+Here's the same pipeline, but this time watch the **SSA** tab — a branch that reassigns a variable and merges back gets a phi node right where the paths join.
+
+<CompilerExplorer defaultSource={`def max(a: i32, b: i32) -> i32 {
+    let mut m = a;
+    if a < b {
+        m = b;
+    }
+    m
+}
+`} />
