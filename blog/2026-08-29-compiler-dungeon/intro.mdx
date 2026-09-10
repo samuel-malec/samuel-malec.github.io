@@ -4,9 +4,16 @@ tags: [compiler-dungeon]
 
 # Compiler Dungeon
 
-I have been working with compilers for quite some while and one thing that was kinda bothering me during this time was that I kept coming to the same fundamental concepts,
-but didn't have a practical experience with them. 
+import CompilerExplorer from '@site/src/components/CompilerExplorer';
 
-And just to be clear, I am not saying that one needs to have hands on experience with everything they do - this is only my personal feeling at the time.
-However, I had some pl/compiler projects under my belt - such as the classis tree-walk interpreter or a compiler of tiny C subset that compiled to LLVM IR. 
-However all of these projects felt like cheating. You don't really experience the  
+This is a 
+Try it yourself — edit the source below and watch it move through the lexer, parser, and type checker in real time.
+
+<CompilerExplorer defaultSource={`def max(a: i32, b: i32) -> i32 {
+    if a < b {
+        b
+    } else {
+        a
+    }
+}
+`} />
