@@ -1,0 +1,103 @@
+.playground {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  padding: 1rem;
+  background: var(--ifm-background-surface-color);
+}
+
+@media (max-width: 768px) {
+  .playground {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editorPane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.editorPane > :first-child {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+.toggles {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.diffPane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.columnLabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.25rem;
+}
+
+.output {
+  flex: 1;
+  min-height: 280px;
+  max-height: 280px;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.75rem;
+  background: var(--ifm-code-background);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  white-space: pre;
+}
+
+.loading {
+  padding: 1rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+}
+
+.errorBanner {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-danger-contrast-background);
+  color: var(--ifm-color-danger-contrast-foreground);
+  font-size: 0.85rem;
+}
+
+.errorStage {
+  opacity: 0.8;
+}

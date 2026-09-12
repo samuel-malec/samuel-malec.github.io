@@ -1,29 +1,11 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useState} from 'react';
 import type {ReactNode} from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import {cpp} from '@codemirror/lang-cpp';
-import useBaseUrl from '@docusaurus/useBaseUrl';
 import {useColorMode} from '@docusaurus/theme-common';
+import {useCompilerModule, type CompileResult} from '@site/src/lib/compilerModule';
 import type {CompilerExplorerProps} from './index';
 import styles from './styles.module.css';
-
-interface CompileResult {
-  tokens: string;
-  ast: string;
-  hir: string;
-  ir: string;
-  cfg: string;
-  stage: string;
-  error: string;
-}
-
-interface CompilerModule {
-  compile(source: string): CompileResult;
-}
-
-type ModuleFactory = (opts?: {
-  locateFile?: (path: string) => string;
-}) => Promise<CompilerModule>;
 
 type TabKey = 'tokens' | 'ast' | 'hir' | 'ir' | 'cfg';
 
@@ -41,47 +23,18 @@ const EMPTY_RESULT: CompileResult = {
 
 export default function Explorer({defaultSource}: CompilerExplorerProps): ReactNode {
   const {colorMode} = useColorMode();
-  const wasmJsUrl = useBaseUrl('/wasm/compiler-dungeon-wasm.js');
-  const wasmDirUrl = useBaseUrl('/wasm/');
-
-  const moduleRef = useRef<CompilerModule | null>(null);
+  const {module, ready, loadError} = useCompilerModule();
 
   const [source, setSource] = useState(defaultSource);
   const [activeTab, setActiveTab] = useState<TabKey>('ir');
   const [result, setResult] = useState<CompileResult | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    import(/* webpackIgnore: true */ wasmJsUrl)
-      .then((mod) => {
-        const factory = mod.default as ModuleFactory;
-        return factory({locateFile: (path) => wasmDirUrl + path});
-      })
-      .then((compilerModule) => {
-        if (cancelled) return;
-        moduleRef.current = compilerModule;
-        setReady(true);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : String(err));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!ready || !moduleRef.current) return;
+    if (!ready || !module) return;
 
     const handle = setTimeout(() => {
       try {
-        setResult(moduleRef.current!.compile(source));
+        setResult(module.compile(source));
       } catch (err) {
         setResult({
           ...EMPTY_RESULT,
