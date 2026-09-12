@@ -44,59 +44,61 @@ export default function Playground({defaultSource}: OptimizationPlaygroundProps)
   }
 
   return (
-    <div className={styles.playground}>
-      <div className={styles.editorPane}>
-        <CodeMirror
-          value={source}
-          height="280px"
-          theme={colorMode === 'dark' ? 'dark' : 'light'}
-          extensions={[cpp()]}
-          onChange={setSource}
-        />
-        <div className={styles.toggles}>
-          <label className={styles.toggle}>
-            <input
-              type="checkbox"
-              checked={constantFolding}
-              onChange={(e) => setConstantFolding(e.target.checked)}
-            />
-            Constant folding
-          </label>
-          <label className={styles.toggle}>
-            <input
-              type="checkbox"
-              checked={dce}
-              onChange={(e) => setDce(e.target.checked)}
-            />
-            Dead code elimination
-          </label>
+    <div className={styles.wrapper}>
+      <div className={styles.playground}>
+        <div className={styles.editorPane}>
+          <CodeMirror
+            value={source}
+            height="280px"
+            theme={colorMode === 'dark' ? 'dark' : 'light'}
+            extensions={[cpp()]}
+            onChange={setSource}
+          />
+          <div className={styles.toggles}>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={constantFolding}
+                onChange={(e) => setConstantFolding(e.target.checked)}
+              />
+              Constant folding
+            </label>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={dce}
+                onChange={(e) => setDce(e.target.checked)}
+              />
+              Dead code elimination
+            </label>
+          </div>
         </div>
-      </div>
 
-      <div className={styles.diffPane}>
-        {!ready && <div className={styles.loading}>Loading compiler…</div>}
+        <div className={styles.diffPane}>
+          {!ready && <div className={styles.loading}>Loading compiler…</div>}
 
-        {ready && result?.error && (
-          <div className={styles.errorBanner}>
-            {result.error}
-            {result.stage && (
-              <span className={styles.errorStage}> (reached: {result.stage})</span>
-            )}
-          </div>
-        )}
-
-        {ready && (
-          <div className={styles.columns}>
-            <div className={styles.column}>
-              <div className={styles.columnLabel}>Before</div>
-              <pre className={styles.output}>{result?.before ?? ''}</pre>
+          {ready && result?.error && (
+            <div className={styles.errorBanner}>
+              {result.error}
+              {result.stage && (
+                <span className={styles.errorStage}> (reached: {result.stage})</span>
+              )}
             </div>
-            <div className={styles.column}>
-              <div className={styles.columnLabel}>After</div>
-              <pre className={styles.output}>{result?.after ?? ''}</pre>
+          )}
+
+          {ready && (
+            <div className={styles.columns}>
+              <div className={styles.column}>
+                <div className={styles.columnLabel}>Before</div>
+                <pre className={styles.output}>{result?.before ?? ''}</pre>
+              </div>
+              <div className={styles.column}>
+                <div className={styles.columnLabel}>After</div>
+                <pre className={styles.output}>{result?.after ?? ''}</pre>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

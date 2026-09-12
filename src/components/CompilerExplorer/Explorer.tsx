@@ -55,42 +55,44 @@ export default function Explorer({defaultSource}: CompilerExplorerProps): ReactN
   }
 
   return (
-    <div className={styles.explorer}>
-      <div className={styles.editorPane}>
-        <CodeMirror
-          value={source}
-          height="360px"
-          theme={colorMode === 'dark' ? 'dark' : 'light'}
-          extensions={[cpp()]}
-          onChange={setSource}
-        />
-      </div>
-
-      <div className={styles.outputPane}>
-        <div className={styles.tabs}>
-          {TABS.map(({key, label}) => (
-            <button
-              key={key}
-              type="button"
-              className={activeTab === key ? styles.tabActive : styles.tab}
-              onClick={() => setActiveTab(key)}>
-              {label}
-            </button>
-          ))}
+    <div className={styles.wrapper}>
+      <div className={styles.explorer}>
+        <div className={styles.editorPane}>
+          <CodeMirror
+            value={source}
+            height="360px"
+            theme={colorMode === 'dark' ? 'dark' : 'light'}
+            extensions={[cpp()]}
+            onChange={setSource}
+          />
         </div>
 
-        {!ready && <div className={styles.loading}>Loading compiler…</div>}
-
-        {ready && result?.error && (
-          <div className={styles.errorBanner}>
-            {result.error}
-            {result.stage && (
-              <span className={styles.errorStage}> (reached: {result.stage})</span>
-            )}
+        <div className={styles.outputPane}>
+          <div className={styles.tabs}>
+            {TABS.map(({key, label}) => (
+              <button
+                key={key}
+                type="button"
+                className={activeTab === key ? styles.tabActive : styles.tab}
+                onClick={() => setActiveTab(key)}>
+                {label}
+              </button>
+            ))}
           </div>
-        )}
 
-        {ready && <pre className={styles.output}>{result?.[activeTab] ?? ''}</pre>}
+          {!ready && <div className={styles.loading}>Loading compiler…</div>}
+
+          {ready && result?.error && (
+            <div className={styles.errorBanner}>
+              {result.error}
+              {result.stage && (
+                <span className={styles.errorStage}> (reached: {result.stage})</span>
+              )}
+            </div>
+          )}
+
+          {ready && <pre className={styles.output}>{result?.[activeTab] ?? ''}</pre>}
+        </div>
       </div>
     </div>
   );

@@ -1,17 +1,25 @@
-.explorer {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.wrapper {
+  container-type: inline-size;
   margin: 1.5rem 0;
+}
+
+.explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--ifm-global-radius);
   padding: 1rem;
   background: var(--ifm-background-surface-color);
 }
 
-@media (max-width: 768px) {
+/* Docusaurus's content column can stay narrow (~700px) even on wide
+   screens once a sidebar is present, so this checks the widget's own
+   rendered width instead of the viewport's. */
+@container (min-width: 900px) {
   .explorer {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 

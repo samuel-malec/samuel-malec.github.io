@@ -1,18 +1,16 @@
-.playground {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+.wrapper {
+  container-type: inline-size;
   margin: 1.5rem 0;
+}
+
+.playground {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   border: 1px solid var(--ifm-color-emphasis-300);
   border-radius: var(--ifm-global-radius);
   padding: 1rem;
   background: var(--ifm-background-surface-color);
-}
-
-@media (max-width: 768px) {
-  .playground {
-    grid-template-columns: 1fr;
-  }
 }
 
 .editorPane {
@@ -50,7 +48,7 @@
 
 .columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.5rem;
   flex: 1;
 }
@@ -100,4 +98,24 @@
 
 .errorStage {
   opacity: 0.8;
+}
+
+/* Docusaurus's content column can stay narrow (~700px) even on wide
+   screens once a sidebar is present, so these check the widget's own
+   rendered width instead of the viewport's -- and layer progressively,
+   since before/after fits side-by-side well before there's also room
+   to put the editor next to the diff pane. Kept after every base rule
+   above: at equal specificity a later rule always wins the cascade,
+   query match or not, so overrides have to come last. */
+@container (min-width: 700px) {
+  .columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container (min-width: 1100px) {
+  .playground {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }
