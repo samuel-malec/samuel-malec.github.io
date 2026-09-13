@@ -2,11 +2,11 @@
 tags: [qthu]
 ---
 
-# qthu
+# Dagon 
 
 import QthuExplorer from '@site/src/components/QthuExplorer';
 
-qthu is a compiler toolchain that takes a subset of JavaScript all the way down to real QuickJS bytecode, through a small, linear intermediate language called Cthulhu.
+Dagon is a compiler toolchain that takes a subset of JavaScript all the way down to real QuickJS bytecode, through a small, intermediate language called Cthulhu.
 The source code is on [github](https://github.com/samuel-malec/qthu).
 
 Two compilers make up the pipeline: `js2ct` lowers JavaScript into Cthulhu IR (`.ct` text), and `ct2qjs` lowers Cthulhu IR into QuickJS bytecode. Below, both run together in your browser, compiled to WebAssembly — and the resulting bytecode is actually *executed* against an embedded QuickJS runtime, not just displayed. Edit the source and every tab updates live; the banner under the editor shows what really happened when the program ran, `assert` failures included.
