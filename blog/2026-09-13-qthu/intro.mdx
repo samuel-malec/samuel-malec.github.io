@@ -11,26 +11,22 @@ The source code is on [github](https://github.com/samuel-malec/qthu).
 
 Two compilers make up the pipeline: `js2ct` lowers JavaScript into Cthulhu IR (`.ct` text), and `ct2qjs` lowers Cthulhu IR into QuickJS bytecode. Below, both run together in your browser, compiled to WebAssembly — and the resulting bytecode is actually *executed* against an embedded QuickJS runtime, not just displayed. Edit the source and every tab updates live; the banner under the editor shows what really happened when the program ran, `assert` failures included.
 
-<QthuExplorer defaultSource={`function makeCounter() {
-    let c = {};
-    c.count = 0;
-    return c;
-}
-
-function incrementBy(c, n) {
-    let i = 0;
-    while (i < n) {
-        c.count = c.count + 1;
-        i = i + 1;
+<QthuExplorer defaultSource={`
+function fib_rec(fib1, fib2, n) {
+    if (n == 0) {
+        return fib2;
     }
-    return c;
+    return fib_rec(fib2, fib1 + fib2, n - 1);
 }
 
-function run() {
-    let c = makeCounter();
-    c = incrementBy(c, 5);
-    assert(c.count == 5);
+function fib_base(n) {
+    if (n <= 2) {
+        return 1;
+    }
+    return fib_rec(1, 1, n - 2);
 }
+
+return fib_base(10);
 
 run();
 `} />
