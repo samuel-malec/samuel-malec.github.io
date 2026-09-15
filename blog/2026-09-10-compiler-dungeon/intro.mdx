@@ -7,7 +7,8 @@ tags: [compiler-dungeon]
 import CompilerExplorer from '@site/src/components/CompilerExplorer';
 import OptimizationPlayground from '@site/src/components/OptimizationPlayground';
 
-This is an educational compiler I built because I wanted to have a little playground for my own experiments.
+This is an educational compiler built in order to demonstrate the core ideas in compiler theory.
+It is aimed to target a small language that would be expressive enough, so that we can write more useful programs. 
 The source code is on [github](https://github.com/samuel-malec/compiler-dungeon).
 I am planning to do some technical write-ups on the topics I am dealing with while working on this project. 
 In the meantime, I wanted to create an interactive IR visualizer that would depict the different representations of a program during the compilation pipeline.
@@ -36,7 +37,7 @@ and you can try it out for yourself below:
 
 Toggle constant folding and dead code elimination on and off to see how they interact — folding turns arithmetic on literals into a single constant, which is exactly what makes the operands it used dead for DCE to remove.
 
-<OptimizationPlayground defaultSource={`def calculate() -> i32 {
+<OptimizationPlayground defaultSource={`fn calculate() -> i32 {
     let x = 10 + 20;
     let y = x * 4;
     let z = y / 2;
