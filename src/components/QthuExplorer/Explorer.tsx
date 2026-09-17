@@ -13,7 +13,7 @@ const TABS: {key: TabKey; label: string}[] = [
   {key: 'ast', label: 'AST'},
   {key: 'hir', label: 'HIR'},
   {key: 'lin', label: 'LIN'},
-  {key: 'cthu', label: 'Cthulhu (.ct)'},
+  {key: 'cthu', label: 'Cthulhu'},
   {key: 'bytecode', label: 'QuickJS bytecode'},
 ];
 
