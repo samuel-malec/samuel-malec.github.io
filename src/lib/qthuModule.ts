@@ -4,8 +4,9 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 export interface PipelineResult {
   ast: string;
   hir: string;
-  lin: string;
-  cthu: string;
+  lir: string;
+  locthu: string;
+  hicthu: string;
   bytecode: string;
   runOutput: string;
   stage: string;

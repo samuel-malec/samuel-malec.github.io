@@ -7,18 +7,19 @@ import {useQthuModule, type PipelineResult} from '@site/src/lib/qthuModule';
 import type {QthuExplorerProps} from './index';
 import styles from './styles.module.css';
 
-type TabKey = 'ast' | 'hir' | 'lin' | 'cthu' | 'bytecode';
+type TabKey = 'ast' | 'hir' | 'lir' | 'hicthu' | 'locthu' | 'bytecode';
 
 const TABS: {key: TabKey; label: string}[] = [
   {key: 'ast', label: 'AST'},
   {key: 'hir', label: 'HIR'},
-  {key: 'lin', label: 'LIN'},
-  {key: 'cthu', label: 'Cthulhu'},
-  {key: 'bytecode', label: 'QuickJS bytecode'},
+  {key: 'lir', label: 'LIR'},
+  {key: 'hicthu', label: 'HICthu'},
+  {key: 'locthu', label: 'LOCthu'},
+  {key: 'bytecode', label: 'QuickJS'},
 ];
 
 const EMPTY_RESULT: PipelineResult = {
-  ast: '', hir: '', lin: '', cthu: '', bytecode: '', runOutput: '', stage: '', error: '',
+  ast: '', hir: '', lir: '', hicthu: '', locthu: '', bytecode: '', runOutput: '', stage: '', error: '',
 };
 
 export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode {
@@ -26,7 +27,7 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
   const {module, ready, loadError} = useQthuModule();
 
   const [source, setSource] = useState(defaultSource);
-  const [activeTab, setActiveTab] = useState<TabKey>('cthu');
+  const [activeTab, setActiveTab] = useState<TabKey>('hicthu');
   const [result, setResult] = useState<PipelineResult | null>(null);
 
   useEffect(() => {
