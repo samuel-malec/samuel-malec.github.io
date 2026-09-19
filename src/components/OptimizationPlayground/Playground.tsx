@@ -14,7 +14,7 @@ export default function Playground({defaultSource}: OptimizationPlaygroundProps)
   const {module, ready, loadError} = useCompilerModule();
 
   const [source, setSource] = useState(defaultSource);
-  const [constantFolding, setConstantFolding] = useState(true);
+  const [sccp, setSccp] = useState(true);
   const [dce, setDce] = useState(true);
   const [result, setResult] = useState<OptimizeResult | null>(null);
 
@@ -23,7 +23,7 @@ export default function Playground({defaultSource}: OptimizationPlaygroundProps)
 
     const handle = setTimeout(() => {
       try {
-        setResult(module.optimize(source, constantFolding, dce));
+        setResult(module.optimize(source, sccp, dce));
       } catch (err) {
         setResult({
           ...EMPTY_RESULT,
@@ -33,7 +33,7 @@ export default function Playground({defaultSource}: OptimizationPlaygroundProps)
     }, 300);
 
     return () => clearTimeout(handle);
-  }, [source, constantFolding, dce, ready]);
+  }, [source, sccp, dce, ready]);
 
   if (loadError) {
     return (
@@ -58,10 +58,10 @@ export default function Playground({defaultSource}: OptimizationPlaygroundProps)
             <label className={styles.toggle}>
               <input
                 type="checkbox"
-                checked={constantFolding}
-                onChange={(e) => setConstantFolding(e.target.checked)}
+                checked={sccp}
+                onChange={(e) => setSccp(e.target.checked)}
               />
-              Constant folding
+              SCCP
             </label>
             <label className={styles.toggle}>
               <input

@@ -26,12 +26,11 @@ and you can try it out for yourself below:
 
 ## Optimizations
 
-Toggle constant folding and dead code elimination on and off to see how they interact — folding turns arithmetic on literals into a single constant, which is exactly what makes the operands it used dead for DCE to remove.
+Toggle SCCP (Sparse Conditional Constant Propagation) and dead code elimination on and off to see how they interact. SCCP folds constant arithmetic, resolves branches whose condition it can prove at compile time, and deletes the blocks that become unreachable as a result — which is exactly what leaves behind dead computations for DCE to sweep up.
 
 <OptimizationPlayground defaultSource={`fn calculate() -> i32 {
     let x = 10 + 20;
-    let y = x * 4;
-    let z = y / 2;
-    z
+    let y = if x > 100 { x * 4 } else { x / 2 };
+    y
 }
 `} />
