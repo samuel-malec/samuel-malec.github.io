@@ -106,9 +106,9 @@ To give concrete examples of this phenomenon, suppose the two examples below, in
 # Example I - Loop-Invariant Memory Access 
 Consider:
 ```jsx
-public static class Demo {
-    class Counter { int value; }
-    class Config { int limit; }
+public class Demo {
+    static class Counter { int value; }
+    static class Config { int limit; }
 
     static void bump(Counter counter) {
         counter.value++;
