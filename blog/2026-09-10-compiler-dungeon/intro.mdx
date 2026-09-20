@@ -4,18 +4,26 @@ tags: [compiler-dungeon]
 
 # Compiler Dungeon ️⛽
 
-import CompilerExplorer from '@site/src/components/CompilerExplorer';
-import OptimizationPlayground from '@site/src/components/OptimizationPlayground';
+import PipelineExplorer from '@site/src/components/PipelineExplorer';
 
-This is an educational compiler built in order to demonstrate the core ideas in compiler theory.
-It is aimed to target a small language that would be expressive enough, so that we can write more useful programs. 
-The source code is on [github](https://github.com/samuel-malec/compiler-dungeon).
-I am planning to do some technical write-ups on the topics I am dealing with while working on this project. 
-In the meantime, I wanted to create an interactive IR visualizer that would depict the different representations of a program during the compilation pipeline.
-You can check the language overview [here](https://github.com/samuel-malec/compiler-dungeon/blob/main/docs/language.md)
-and you can try it out for yourself below:
+This is an educational compiler built to demonstrate the core ideas in compiler theory. It targets a
+small language — Kerosene — expressive enough to write real programs with, while staying small enough
+that every stage of the pipeline fits in your head at once. The source is on
+[github](https://github.com/samuel-malec/compiler-dungeon), and the language itself is documented
+[here](https://github.com/samuel-malec/compiler-dungeon/blob/main/docs/language.md).
 
-<CompilerExplorer defaultSource={`fn max(a: i32, b: i32) -> i32 {
+I'll be writing more detailed posts on individual parts of this pipeline over time. This post is the
+front door: an interactive compiler embedded directly in the page, so you can see how a program
+actually moves through each stage before reading about any of them in depth.
+
+## Interactive compiler
+
+Edit the source below, then step through the pipeline with the buttons underneath it. The
+representations (Tokens, AST, HIR, IR, SSA) are what your program *looks like* at each point; SCCP and
+DCE are optimization passes that *rewrite* the SSA form rather than being representations of their
+own, so selecting one shows a before/after instead of pretending it's just another tab.
+
+<PipelineExplorer defaultSource={`fn max(a: i32, b: i32) -> i32 {
     if a < b {
         b
     } else {
@@ -24,13 +32,46 @@ and you can try it out for yourself below:
 }
 `} />
 
-## Optimizations
+## How the pipeline works
 
-Toggle SCCP (Sparse Conditional Constant Propagation) and dead code elimination on and off to see how they interact. SCCP folds constant arithmetic, resolves branches whose condition it can prove at compile time, and deletes the blocks that become unreachable as a result — which is exactly what leaves behind dead computations for DCE to sweep up.
+### 1. Tokens & parsing
 
-<OptimizationPlayground defaultSource={`fn calculate() -> i32 {
-    let x = 10 + 20;
-    let y = if x > 100 { x * 4 } else { x / 2 };
-    y
-}
-`} />
+The lexer turns source text into a flat stream of tokens, and a Pratt parser assembles those tokens
+into an AST that mirrors the language's grammar directly — no intermediate representation yet, just
+the program's syntax as a tree.
+
+### 2. HIR
+
+The AST gets type-checked and desugared into HIR: every expression now carries the type the checker
+resolved for it, but control flow (`if`, `while`, `loop`) is still structural, not yet expressed as
+jumps between blocks.
+
+### 3. IR and SSA
+
+HIR lowers into a flat instruction sequence with explicit labels and branches, which a separate CFG
+pass then splits into basic blocks. `mem2reg` promotes local variables out of memory and into SSA
+form, where every value is defined exactly once and merge points get explicit phi nodes.
+
+### 4. SCCP
+
+Sparse Conditional Constant Propagation walks the SSA form once, tracking which values are provably
+constant and which branches are provably one-sided. Where it can prove a condition, it collapses the
+branch and deletes the code that can no longer run.
+
+### 5. DCE
+
+Dead Code Elimination removes instructions whose results are never used and which have no side
+effects. It's a natural pairing with SCCP: folding a branch or a constant is exactly what turns
+previously-live computations into dead ones.
+
+## Implementation
+
+The compiler itself is plain C++20 with no dependencies, built as both a native CLI and a WebAssembly
+module (the one running the widget above) via Emscripten. The full source, including the SCCP and
+CFG-simplification passes described above, is on
+[github](https://github.com/samuel-malec/compiler-dungeon).
+
+## Further reading
+
+More posts on individual passes — and on later stages like register allocation and code generation as
+they get built — will show up under the `compiler-dungeon` tag over time.

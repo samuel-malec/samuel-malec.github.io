@@ -1,0 +1,326 @@
+.wrapper {
+  container-type: inline-size;
+  margin: 1.5rem 0;
+}
+
+.explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  padding: 1rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.paneLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ---------- source ---------- */
+
+.sourcePane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.editor {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  overflow: hidden;
+}
+
+/* ---------- pipeline nav ---------- */
+
+.nav {
+  border-top: 1px solid var(--ifm-color-emphasis-300);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  padding: 0.5rem 0;
+}
+
+.navScroll {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.navItemWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+}
+
+.navArrow {
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.8rem;
+}
+
+.navDivider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--ifm-color-emphasis-300);
+  flex: none;
+  margin: 0 0.15rem;
+}
+
+.navTab,
+.navTabActive {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.85rem;
+  font-family: var(--ifm-font-family-monospace);
+  cursor: pointer;
+  border-radius: calc(var(--ifm-global-radius) / 1.5);
+  white-space: nowrap;
+}
+
+.navTabActive {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+.navPill,
+.navPillActive {
+  flex: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-family: var(--ifm-font-family-monospace);
+  cursor: pointer;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.navPillActive {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* ---------- step-through ---------- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.stepButton {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: transparent;
+  color: var(--ifm-font-color-base);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+}
+
+.stepButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stepCount {
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-600);
+  font-variant-numeric: tabular-nums;
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+/* ---------- output ---------- */
+
+.outputPane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.output {
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  background: var(--ifm-code-background);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  white-space: pre;
+}
+
+.description {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.loading {
+  padding: 1rem;
+  color: var(--ifm-color-emphasis-600);
+  font-style: italic;
+}
+
+.errorBanner {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-color-danger-contrast-background);
+  color: var(--ifm-color-danger-contrast-foreground);
+  font-size: 0.85rem;
+}
+
+.errorStage {
+  opacity: 0.8;
+}
+
+/* ---------- tokens ---------- */
+
+.tokenGrid {
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 0.5rem 0.75rem;
+  background: var(--ifm-code-background);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.78rem;
+}
+
+.tokenRow {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.12rem 0;
+}
+
+.tokenPos {
+  color: var(--ifm-color-emphasis-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.tokenText {
+  color: var(--ifm-font-color-base);
+  overflow-wrap: anywhere;
+}
+
+.tokenKind {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  justify-self: end;
+}
+
+.tokenKind[data-kind='keyword'] {
+  color: var(--ifm-color-primary);
+}
+
+/* ---------- diff ---------- */
+
+.diffGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+.diffColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.columnLabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.lineContext {
+  padding: 0 0.15rem;
+}
+
+.lineRemoved {
+  padding: 0 0.15rem;
+  background: rgba(220, 38, 38, 0.14);
+}
+
+.lineAdded {
+  padding: 0 0.15rem;
+  background: rgba(34, 197, 94, 0.14);
+}
+
+/* Docusaurus's content column can stay narrow (~700px) even on wide screens
+   once a sidebar is present, so this checks the widget's own rendered width
+   instead of the viewport's. Kept after every base rule above: at equal
+   specificity a later rule always wins the cascade, query match or not. */
+@container (min-width: 700px) {
+  .diffGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@container (min-width: 900px) {
+  .explorer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  .sourcePane {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .outputPane {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .nav {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .stepper {
+    grid-column: 1;
+    grid-row: 3;
+    justify-content: flex-start;
+  }
+
+  .description {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+}
