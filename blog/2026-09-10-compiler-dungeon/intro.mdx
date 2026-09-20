@@ -23,12 +23,10 @@ representations (Tokens, AST, HIR, IR, SSA) are what your program *looks like* a
 DCE are optimization passes that *rewrite* the SSA form rather than being representations of their
 own, so selecting one shows a before/after instead of pretending it's just another tab.
 
-<PipelineExplorer defaultSource={`fn max(a: i32, b: i32) -> i32 {
-    if a < b {
-        b
-    } else {
-        a
-    }
+<PipelineExplorer defaultSource={`fn calculate() -> i32 {
+    let x = 10 + 20;
+    let y = if x > 100 { x * 4 } else { x / 2 };
+    y
 }
 `} />
 

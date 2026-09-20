@@ -4,7 +4,15 @@ import CodeMirror from '@uiw/react-codemirror';
 import {cpp} from '@codemirror/lang-cpp';
 import {useColorMode} from '@docusaurus/theme-common';
 import {useCompilerModule, type CompileResult} from '@site/src/lib/compilerModule';
-import {STAGES, stageIndex, stageByKey, type StageKey, type RepresentationKey} from './stages';
+import {
+  STAGES,
+  TRANSFORM_ORDER,
+  stageIndex,
+  stageByKey,
+  type StageKey,
+  type RepresentationKey,
+  type TransformKey,
+} from './stages';
 import {formatIndentTree} from './formatTree';
 import TokenView from './TokenView';
 import DiffView from './DiffView';
@@ -18,6 +26,15 @@ interface BeforeAfter {
   after: string;
   error: string;
   stage: string;
+}
+
+// Turns "every transform enabled up to and including `key`" into the positional flag tuple
+// optimize() expects. Adding a fourth transform means adding one entry to TRANSFORM_ORDER in
+// stages.ts and one field here — nothing else about this function changes.
+function flagsUpTo(key: TransformKey | null): [boolean, boolean, boolean] {
+  const idx = key ? TRANSFORM_ORDER.indexOf(key) : -1;
+  const enabled = new Set(TRANSFORM_ORDER.slice(0, idx + 1));
+  return [enabled.has('sccp'), enabled.has('dce'), enabled.has('simplify_cfg')];
 }
 
 function representationContent(key: RepresentationKey, result: CompileResult): string {
@@ -56,20 +73,16 @@ export default function PipelineExplorer({defaultSource}: PipelineExplorerProps)
         if (stage.kind === 'representation') {
           setCompileResult(module.compile(source));
           setBeforeAfter(null);
-        } else if (stage.key === 'sccp') {
-          // "Before" is the plain SSA form no pass has touched yet; "after" is
-          // SCCP's own output, with DCE deliberately left off so this view is
-          // exactly what SCCP alone did to the input.
-          const raw = module.optimize(source, false, false);
-          const sccpOnly = module.optimize(source, true, false);
-          setBeforeAfter({before: raw.before, after: sccpOnly.after, error: sccpOnly.error, stage: sccpOnly.stage});
-          setCompileResult(null);
-        } else if (stage.key === 'dce') {
-          // DCE always runs after SCCP in the real pipeline, so its "before"
-          // is SCCP's output, not the raw SSA — this is what DCE actually saw.
-          const sccpOnly = module.optimize(source, true, false);
-          const both = module.optimize(source, true, true);
-          setBeforeAfter({before: sccpOnly.after, after: both.after, error: both.error, stage: both.stage});
+        } else {
+          // Each transform's "before" is every earlier transform's combined output (or plain
+          // SSA, for the first one) — exactly what the real pipeline hands it — and "after" adds
+          // this transform to that same set. Both calls always agree on everything before this
+          // stage, so the diff shown is only ever this one pass's own contribution.
+          const orderIdx = TRANSFORM_ORDER.indexOf(stage.key);
+          const previousKey = orderIdx > 0 ? TRANSFORM_ORDER[orderIdx - 1] : null;
+          const before = module.optimize(source, ...flagsUpTo(previousKey));
+          const after = module.optimize(source, ...flagsUpTo(stage.key));
+          setBeforeAfter({before: before.after, after: after.after, error: after.error, stage: after.stage});
           setCompileResult(null);
         }
       } catch (err) {
@@ -140,8 +153,8 @@ export default function PipelineExplorer({defaultSource}: PipelineExplorerProps)
 
         {ready && (
           <div className={styles.outputPane}>
-            <div className={styles.paneLabel}>
-              {stage.kind === 'transform' ? `${stageByKey(stage.appliesTo).label} → ${stage.label}` : stage.label}
+            <div className={styles.stageLabel}>
+              {stage.kind === 'transform' ? `${STAGES[index - 1].label} → ${stage.label}` : stage.label}
             </div>
 
             {stage.kind === 'representation' && compileResult && !error && (

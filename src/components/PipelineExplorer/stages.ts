@@ -4,7 +4,7 @@
 // derive from this list rather than hardcoding a UI per stage.
 
 export type RepresentationKey = 'tokens' | 'ast' | 'hir' | 'ir' | 'ssa';
-export type TransformKey = 'sccp' | 'dce';
+export type TransformKey = 'sccp' | 'dce' | 'simplify_cfg';
 export type StageKey = RepresentationKey | TransformKey;
 
 export interface RepresentationStage {
@@ -21,9 +21,6 @@ export interface TransformStage {
   key: TransformKey;
   label: string;
   description: string;
-  // Which representation this pass rewrites — used to decide what "before"
-  // means, and to label the before/after view (e.g. "SSA → SCCP").
-  appliesTo: RepresentationKey;
 }
 
 export type Stage = RepresentationStage | TransformStage;
@@ -78,21 +75,36 @@ export const STAGES: Stage[] = [
     kind: 'transform',
     key: 'sccp',
     label: 'SCCP',
-    appliesTo: 'ssa',
     description:
-      'Sparse Conditional Constant Propagation folds constant arithmetic, resolves branches whose ' +
-      'condition it can prove at compile time, and removes the blocks that become unreachable as a result.',
+      'Sparse Conditional Constant Propagation folds constant arithmetic and resolves branches ' +
+      'whose condition it can prove at compile time — it doesn’t clean up afterwards, that’s the ' +
+      'next two passes’ job.',
   },
   {
     kind: 'transform',
     key: 'dce',
     label: 'DCE',
-    appliesTo: 'ssa',
     description:
       'Dead Code Elimination removes instructions whose results are never used and have no side ' +
       'effects — exactly what SCCP’s folding tends to leave behind.',
   },
+  {
+    kind: 'transform',
+    key: 'simplify_cfg',
+    label: 'SimplifyCFG',
+    description:
+      'Cleans up the control-flow graph structurally: deletes blocks nothing can reach anymore, ' +
+      'merges a block into its sole predecessor when that’s safe, and collapses phi nodes left ' +
+      'with only one incoming value.',
+  },
 ];
+
+// The real pipeline's fixed transform order (sccp, then dce, then simplify_cfg) — derived from
+// STAGES itself rather than duplicated, so reordering or adding a transform there is the only
+// place that needs to change.
+export const TRANSFORM_ORDER: TransformKey[] = STAGES.filter(
+  (s): s is TransformStage => s.kind === 'transform',
+).map((s) => s.key);
 
 export function stageIndex(key: StageKey): number {
   return STAGES.findIndex((s) => s.key === key);

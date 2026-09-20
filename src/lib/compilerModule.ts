@@ -20,7 +20,12 @@ export interface OptimizeResult {
 
 export interface CompilerWasmModule {
   compile(source: string): CompileResult;
-  optimize(source: string, enableSccp: boolean, enableDce: boolean): OptimizeResult;
+  optimize(
+    source: string,
+    enableSccp: boolean,
+    enableDce: boolean,
+    enableSimplifyCfg: boolean,
+  ): OptimizeResult;
 }
 
 type ModuleFactory = (opts?: {
