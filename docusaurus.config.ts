@@ -27,8 +27,6 @@ const config: Config = {
             'Notes on compilers, intermediate representations, optimisation passes and static analysis.',
           blogSidebarTitle: 'Posts',
           blogSidebarCount: 'ALL',
-          // Posts are long-form and read as a single page; previews are not truncated.
-          onUntruncatedBlogPosts: 'ignore',
           feedOptions: {
             type: 'all',
             title: 'Samuel Malec — Blog',
