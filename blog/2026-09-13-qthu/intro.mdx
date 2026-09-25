@@ -9,8 +9,6 @@ import QthuExplorer from '@site/src/components/QthuExplorer';
 Dagon is a compiler toolchain that transforms a subset of JavaScript all the way down to QuickJS bytecode, through an intermediate language called [Cthulhu](https://is.muni.cz/auth/th/paeh4/zjb.pdf).
 The source code is on [github](https://github.com/samuel-malec/dagon).
 
-{/* truncate */}
-
 Two compilers make up the pipeline: `js2ct` lowers JavaScript into Cthulhu IR, and `ct2qjs` lowers Cthulhu IR into QuickJS bytecode. 
 You can try out and experiment with the complation pipeline below.
 Edit the source and every tab updates live. The produced QuickJS bytecode is actually executed.
