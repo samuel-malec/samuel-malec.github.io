@@ -1,30 +1,231 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Global styles. Infima (bundled with the Docusaurus classic theme) provides the
+ * base; this file narrows it down to a light, typographic, research-notes look:
+ * white background, dark text, one restrained accent colour, system fonts.
  */
 
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+  /* Accent: a single restrained blue, used for links and small rules. */
+  --ifm-color-primary: #1b57a8;
+  --ifm-color-primary-dark: #184e97;
+  --ifm-color-primary-darker: #17498e;
+  --ifm-color-primary-darkest: #133c75;
+  --ifm-color-primary-light: #1e60b9;
+  --ifm-color-primary-lighter: #1f65c2;
+  --ifm-color-primary-lightest: #2472d9;
+
+  --ifm-font-family-base: system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --ifm-font-family-monospace: ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+
+  --ifm-font-size-base: 17px;
+  --ifm-line-height-base: 1.65;
+  --ifm-heading-font-weight: 600;
+  --ifm-h1-font-size: 2rem;
+  --ifm-h2-font-size: 1.4rem;
+  --ifm-h3-font-size: 1.15rem;
+  --ifm-heading-line-height: 1.25;
+
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #fafafa;
+  --ifm-font-color-base: #1c1e21;
+  --ifm-link-hover-decoration: underline;
+
+  --ifm-code-font-size: 88%;
+  --ifm-code-background: #f2f3f5;
+  --ifm-code-padding-horizontal: 0.28rem;
+  --ifm-code-padding-vertical: 0.1rem;
+  --ifm-code-border-radius: 3px;
+
+  --ifm-navbar-height: 3.5rem;
+  --ifm-navbar-background-color: #ffffff;
+  --ifm-navbar-shadow: none;
+  --ifm-navbar-link-color: #35373a;
+  --ifm-navbar-link-hover-color: var(--ifm-color-primary);
+
+  --ifm-footer-background-color: #fafafa;
+  --ifm-footer-padding-vertical: 2.5rem;
+
+  --ifm-global-radius: 4px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+
+  /* Site-local tokens. */
+  --sm-rule: #e4e6e8;
+  --sm-muted: #5c6166;
+  --sm-measure: 44rem;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+/* The theme already ships a colour-mode switch; keep dark mode supported. */
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+  --ifm-color-primary: #8ab4f8;
+  --ifm-color-primary-dark: #6c9ff6;
+  --ifm-color-primary-darker: #5d94f5;
+  --ifm-color-primary-darkest: #3579f2;
+  --ifm-color-primary-light: #a8c9fa;
+  --ifm-color-primary-lighter: #b7d2fb;
+  --ifm-color-primary-lightest: #e3edfe;
+
+  --ifm-background-color: #16181a;
+  --ifm-background-surface-color: #1d2022;
+  --ifm-font-color-base: #e3e5e7;
+  --ifm-navbar-background-color: #16181a;
+  --ifm-navbar-link-color: #cdd0d3;
+  --ifm-footer-background-color: #1d2022;
+  --ifm-code-background: #26292c;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+
+  --sm-rule: #2d3135;
+  --sm-muted: #a3a8ad;
+}
+
+/* ---------- Typography ---------- */
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.012em;
+}
+
+article h2,
+.markdown h2 {
+  margin-top: 2.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--sm-rule);
+}
+
+article h3,
+.markdown h3 {
+  margin-top: 1.8rem;
+}
+
+/* Links inside prose are underlined so they are identifiable without colour. */
+article a:not(.card):not(.button),
+.markdown a:not(.card):not(.button),
+.sm-prose a:not(.button) {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+code {
+  border: 1px solid var(--sm-rule);
+  vertical-align: baseline;
+}
+
+a code {
+  color: inherit;
+}
+
+blockquote {
+  border-left: 3px solid var(--sm-rule);
+  color: var(--sm-muted);
+}
+
+/* ---------- Navbar ---------- */
+
+.navbar {
+  border-bottom: 1px solid var(--sm-rule);
+}
+
+.navbar__title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.navbar__link {
+  font-size: 0.95rem;
+}
+
+.navbar__link--active {
+  color: var(--ifm-color-primary);
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  border-top: 1px solid var(--sm-rule);
+  font-size: 0.9rem;
+}
+
+.footer--light {
+  --ifm-footer-link-color: var(--ifm-color-primary);
+  --ifm-footer-title-color: var(--ifm-font-color-base);
+  --ifm-footer-color: var(--sm-muted);
+}
+
+.footer__title {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--sm-muted);
+}
+
+.footer__copyright {
+  margin-top: 1.5rem;
+  color: var(--sm-muted);
+  font-size: 0.82rem;
+}
+
+/* ---------- Standalone MDX pages (/about, /projects/*, /reading) ---------- */
+
+/* Constrain the measure and centre the column; class names are hashed by
+   Docusaurus, so match on the stable prefix. */
+main > .row[class*='mdxPageWrapper'] {
+  justify-content: center;
+}
+
+main > .row[class*='mdxPageWrapper'] > .col {
+  max-width: var(--sm-measure);
+  padding-bottom: 2rem;
+}
+
+/* ---------- Blog ---------- */
+
+.blog-list-page article h2,
+.blog-post-page article h2 {
+  border-bottom: 1px solid var(--sm-rule);
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  .navbar,
+  .footer,
+  .theme-blog-sidebar,
+  .pagination-nav,
+  .tableOfContents_bqdL,
+  [class*='backToTopButton'] {
+    display: none !important;
+  }
+
+  :root {
+    --ifm-font-color-base: #000000;
+    --ifm-background-color: #ffffff;
+  }
+
+  a {
+    color: #000000;
+  }
+
+  main > .row[class*='mdxPageWrapper'] > .col {
+    max-width: none;
+  }
+}
+
+/* ---------- Small page-level helpers ---------- */
+
+.sm-cv {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--sm-rule);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-surface-color);
+  font-size: 0.95rem;
+}
+
+/* A stand-in for a link to a file that does not exist yet: deliberately not a
+   link, so it cannot 404 on a reader. */
+.sm-placeholder {
+  color: var(--sm-muted);
+  font-style: italic;
 }
