@@ -1,0 +1,36 @@
+---
+title: Dagon — JavaScript to QuickJS bytecode via Cthulhu
+description: A faculty-funded compiler and IR project — a JavaScript-subset to Cthulhu compiler, a Cthulhu to QuickJS bytecode lowering, and a runtime path that executes the generated QuickJS modules.
+---
+
+import ProjectMeta from '@site/src/components/ProjectMeta';
+
+# Dagon — JavaScript to QuickJS bytecode via Cthulhu
+
+<ProjectMeta slug="/projects/dagon" />
+
+A faculty-funded compiler and IR project: a compiler from a subset of JavaScript
+down to QuickJS bytecode, going through `Cthulhu`, an intermediate language, on
+the way. The interesting part is the middle — what a program looks like once it
+is in Cthulhu, and what the lowering to a real bytecode target has to reconstruct.
+
+There is an interactive walk through the whole pipeline, with the generated
+bytecode actually executed in the page, in
+[the Dagon post](/blog/2026/09/13/qthu/intro). The source is at
+[github.com/samuel-malec/dagon](https://github.com/samuel-malec/dagon).
+
+## Pipeline
+
+- **JavaScript subset to Cthulhu.** Compiling the supported JavaScript subset
+  into Cthulhu IR.
+- **Cthulhu to QuickJS bytecode.** Lowering the IR to bytecode that the QuickJS
+  virtual machine accepts.
+- **Runtime path.** Loading and executing the generated QuickJS modules, which is
+  what makes the lowering verifiable end to end rather than only inspectable.
+
+## Working in Cthulhu
+
+The work involves Cthulhu's Single Static Use representation and its treatment of
+control flow — the representation constrains how a value may be consumed, so
+lowering from JavaScript into it, and out of it into a stack-oriented bytecode,
+is where most of the design decisions sit.

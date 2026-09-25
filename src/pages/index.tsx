@@ -1,55 +1,103 @@
 import type {ReactNode} from 'react';
-import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 
+import {projects} from '@site/src/data/projects';
+import {recentPosts} from '@site/src/data/posts';
+import {contact} from '@site/src/data/site';
+
 import styles from './index.module.css';
 
-function HomepageHeader() {
+const description =
+  'Samuel Malec — compiler engineering, programming languages and static analysis. ' +
+  'Junior researcher at FI MUNI and Oracle Labs working on abstract interpretation ' +
+  'for GraalVM Native Image.';
+
+function SectionHead({title, link}: {title: string; link?: ReactNode}) {
   return (
-    <header className={clsx('hero', styles.heroBanner)}>
-      <div className="container">
-        <Heading as="h1" className={styles.title}>
-          Hello there 👋
-        </Heading>
-        <div className={styles.buttons}>
-          <Link className="button button--primary button--lg" to="/blog">
-            Posts
-          </Link>
-        </div>
-      </div>
-    </header>
+    <div className={styles.sectionHead}>
+      <Heading as="h2" className={styles.sectionTitle}>
+        {title}
+      </Heading>
+      {link ? <span className={styles.sectionLink}>{link}</span> : null}
+    </div>
   );
 }
 
 export default function Home(): ReactNode {
   return (
-    <Layout
-      title="Home"
-    >
-      <HomepageHeader />
+    <Layout title="Samuel Malec" description={description}>
+      <main className={styles.page}>
+        <Heading as="h1" className={styles.name}>
+          Samuel Malec
+        </Heading>
+        <p className={styles.tagline}>{contact.tagline}</p>
 
-      <main className={styles.main}>
-        <section id="about" className={styles.section}>
-          <div className="container">
-            <div className={styles.card}>
-              <Heading as="h2">Whoami</Heading>
-              <p>I'm Sam, a 23 year old computer science student at FI MUNI in Brno.</p>    
-                <p>Ever since I started programming, I've wanted to write my own programming language.
-                Back then, the idea of creating a language seemed really cool to me.
-                I guess this curiosity eventually led me to explore compiler development, programming language design, and static analysis.
+        <div className={styles.intro}>
+          <p>
+            I am an M.Sc. student in Theoretical Computer Science at the Faculty of
+            Informatics, Masaryk University in Brno. Since 2024 I have worked as a
+            junior researcher at FI MUNI together with Oracle Labs on static
+            analysis for GraalVM Native Image — abstract interpretation over the
+            Sea-of-Nodes IR, and context-sensitive interprocedural analysis.
+          </p>
+          <p>
+            Before that I spent close to a year writing industrial C++ at SANEZOO,
+            and I have been teaching introductory programming seminars in Python
+            and C at the faculty since 2023. Outside of that I write my own
+            compilers, mostly to work through ideas end to end: type inference,
+            SSA construction, and optimisation passes on small but complete
+            pipelines.
+          </p>
+        </div>
+
+        <ul className={styles.contactLine}>
+          <li>
+            <Link href={contact.github}>GitHub</Link>
+          </li>
+          <li>
+            <Link href={contact.linkedin}>LinkedIn</Link>
+          </li>
+          <li>
+            <Link href={`mailto:${contact.email}`}>{contact.email}</Link>
+          </li>
+        </ul>
+
+        <section className={styles.section}>
+          <SectionHead
+            title="Selected work"
+            link={<Link to="/projects">All projects →</Link>}
+          />
+          <ul className={styles.entries}>
+            {projects.map((project) => (
+              <li key={project.href} className={styles.entry}>
+                <h3 className={styles.entryTitle}>
+                  <Link to={project.href}>{project.title}</Link>
+                </h3>
+                <p className={styles.entryMeta}>
+                  {[project.context, project.period].filter(Boolean).join(' · ')}
                 </p>
-                <p>
-                This blog is a place where I share notes, ideas, and things I learn along the way that I think others might find interesting.
-                </p>
-                <p>
-                <i>All opinions presented here are my personal opinions and do not reflect the opinion of my employer.</i>
-              </p>
-            </div>
-          </div>
+                <p className={styles.entryText}>{project.summary}</p>
+              </li>
+            ))}
+          </ul>
         </section>
 
+        <section className={styles.section}>
+          <SectionHead
+            title="Latest posts"
+            link={<Link to="/blog">All posts →</Link>}
+          />
+          <ul className={styles.postList}>
+            {recentPosts.map((post) => (
+              <li key={post.href} className={styles.post}>
+                <time className={styles.postDate}>{post.date}</time>
+                <Link to={post.href}>{post.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       </main>
     </Layout>
   );
