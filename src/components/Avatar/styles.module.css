@@ -1,6 +1,6 @@
 .avatar {
   display: block;
-  border-radius: 50%;
+  border-radius: 10px;
   object-fit: cover;
   border: 1px solid var(--ifm-color-emphasis-200);
 }
@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 10px;
   border: 1px dashed var(--ifm-color-warning-dark);
   background: rgba(255, 196, 0, 0.06);
   color: var(--ifm-color-emphasis-700);
