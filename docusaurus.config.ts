@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'ZJBlog',
   tagline: 'Samuel Malec',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   url: 'https://samuel-malec.github.io',
   baseUrl: '/',
