@@ -35,11 +35,9 @@ export default function Home(): ReactNode {
           <div className="container">
             <div className={styles.card}>
               <Heading as="h2">Whoami</Heading>
-              <p>I'm Sam, a 23 year old computer science student at FI MUNI in Brno.</p>    
-                <p>Ever since I started programming, I've wanted to write my own programming language.
-                Back then, the idea of creating a language seemed really cool to me.
-                I guess this curiosity eventually led me to explore compiler development, programming language design, and static analysis.
-                </p>
+              
+              <p>I'm Sam, a MSc theoretical computer science student at FI MUNI in Brno.</p>
+              <p> My main areas of interest are: programming language design, compiler development and static analysis/formal verification. </p>    
                 <p>
                 This blog is a place where I share notes, ideas, and things I learn along the way that I think others might find interesting.
                 </p>
