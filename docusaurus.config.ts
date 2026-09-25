@@ -69,6 +69,10 @@ const config: Config = {
           to: '/',
           label: 'Home',
           position: 'left',
+          // Without this, Home matches every route: activeBasePath defaults to
+          // `to`, and '/' is a prefix of '/blog', '/notes' and the rest, so two
+          // items would light up at once.
+          activeBaseRegex: '^/$',
         },
         {
           to: '/projects',
