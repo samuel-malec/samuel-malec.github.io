@@ -114,6 +114,17 @@
   font-family: var(--ifm-font-family-monospace);
 }
 
+.post a {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+@media screen and (min-width: 600px) {
+  .postDate {
+    min-width: 10rem;
+  }
+}
+
 @media screen and (max-width: 500px) {
   .page {
     padding-top: 2rem;

@@ -88,24 +88,30 @@ h4 {
   letter-spacing: -0.012em;
 }
 
-article h2,
+/* Section rules apply to body copy only, not to post titles in the blog list. */
 .markdown h2 {
   margin-top: 2.4rem;
   padding-bottom: 0.3rem;
   border-bottom: 1px solid var(--sm-rule);
 }
 
-article h3,
 .markdown h3 {
   margin-top: 1.8rem;
 }
 
-/* Links inside prose are underlined so they are identifiable without colour. */
-article a:not(.card):not(.button),
+/* Links inside prose are underlined so they are identifiable without colour;
+   headings are already distinguished by size and weight. */
 .markdown a:not(.card):not(.button),
 .sm-prose a:not(.button) {
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+
+.markdown h1 a,
+.markdown h2 a,
+.markdown h3 a,
+.markdown h4 a {
+  text-decoration: none;
 }
 
 code {
@@ -182,9 +188,14 @@ main > .row[class*='mdxPageWrapper'] > .col {
 
 /* ---------- Blog ---------- */
 
-.blog-list-page article h2,
-.blog-post-page article h2 {
-  border-bottom: 1px solid var(--sm-rule);
+/* Denser post titles in the list; the theme default is close to h1 size. */
+.blog-list-page article > header h2 {
+  font-size: 1.6rem;
+  line-height: 1.3;
+}
+
+.blog-list-page article > header time {
+  color: var(--sm-muted);
 }
 
 /* ---------- Print ---------- */
@@ -221,6 +232,14 @@ main > .row[class*='mdxPageWrapper'] > .col {
   border-radius: var(--ifm-global-radius);
   background: var(--ifm-background-surface-color);
   font-size: 0.95rem;
+}
+
+/* Date / affiliation line under a heading on the about page. */
+.sm-meta {
+  margin-top: -0.7rem;
+  color: var(--sm-muted);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
 }
 
 /* A stand-in for a link to a file that does not exist yet: deliberately not a
