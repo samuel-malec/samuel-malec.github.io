@@ -5,6 +5,7 @@ import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import {usePluginData} from '@docusaurus/useGlobalData';
 
+import Avatar from '@site/src/components/Avatar';
 import Todo from '@site/src/components/Todo';
 import {projects} from '@site/src/data/projects';
 
@@ -68,17 +69,25 @@ export default function Home(): ReactNode {
       <main className={styles.main}>
         <section id="about" className={styles.section}>
           <div className="container">
-            <div className={styles.card}>
-              <Heading as="h2">Whoami</Heading>
-              
-              <p>I'm Sam, a MSc theoretical computer science student at FI MUNI in Brno.</p>
-              <p> My main areas of interest are: programming language design, compiler development and static analysis/formal verification. </p>    
+            <div className={clsx(styles.card, styles.bioCard)}>
+              <div className={styles.bio}>
+                <Heading as="h2">Whoami</Heading>
+
+                <p>I'm Sam, a MSc theoretical computer science student at FI MUNI in Brno.</p>
+                <p> My main areas of interest are: programming language design, compiler development and static analysis/formal verification. </p>
                 <p>
-                This blog is a place where I share notes, ideas, and things I learn along the way that I think others might find interesting.
+                  This blog is a place where I share notes, ideas, and things I learn along the way that I think others might find interesting.
                 </p>
                 <p>
-                <i>All opinions presented here are my personal opinions and do not reflect the opinion of my employer.</i>
-              </p>
+                  <i>All opinions presented here are my personal opinions and do not reflect the opinion of my employer.</i>
+                </p>
+              </div>
+              <Avatar
+                className={styles.bioPhoto}
+                src="/img/profile_pic.jpg"
+                alt="Samuel Malec"
+                size={96}
+              />
             </div>
           </div>
         </section>

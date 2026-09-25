@@ -130,3 +130,42 @@
     min-width: 6.5rem;
   }
 }
+
+/* Whoami: portrait beside the text, tighter gaps between the paragraphs than
+   the site-wide default. */
+.bioCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.bio {
+  min-width: 0;
+}
+
+.bio h2 {
+  margin-bottom: 0.75rem;
+}
+
+.bio p {
+  margin-bottom: 0.55rem;
+}
+
+.bio p:last-child {
+  margin-bottom: 0;
+}
+
+.bioPhoto {
+  flex: 0 0 auto;
+}
+
+@media screen and (max-width: 600px) {
+  .bioCard {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .bioPhoto {
+    order: -1;
+  }
+}
