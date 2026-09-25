@@ -3,7 +3,9 @@ compiler-dungeon:
   permalink: /compiler-dungeon
   description: A series on building an optimizing compiler from scratch — frontend, IR, SSA, and beyond.
 
-qthu:
-  label: qthu
-  permalink: /qthu
+# Keep this key spelled exactly as the posts spell the tag: the permalink below
+# preserves the existing /blog/tags/cthulhu URL.
+Cthulhu:
+  label: Cthulhu
+  permalink: /cthulhu
   description: A JavaScript-to-QuickJS-bytecode compiler toolchain built around Cthulhu, a linear, closures-as-basic-blocks intermediate language.
