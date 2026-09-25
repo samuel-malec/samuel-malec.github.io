@@ -1,0 +1,40 @@
+.todo {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  margin: 0.8rem 0;
+  padding: 0.8rem 1rem;
+  border: 1px dashed var(--ifm-color-warning-dark);
+  border-radius: 12px;
+  background: var(--todo-bg, rgba(255, 196, 0, 0.06));
+}
+
+.badge {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  background: var(--ifm-color-warning-dark);
+  color: #000;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}
+
+.inline {
+  display: inline-flex;
+  margin: 0;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.85rem;
+}
