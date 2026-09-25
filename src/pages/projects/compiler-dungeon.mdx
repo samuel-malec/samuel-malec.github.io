@@ -1,0 +1,45 @@
+---
+title: Compiler Dungeon
+description: An educational and experimental optimising compiler in C++ — parsing, bidirectional type inference, HIR, three-address code, CFG, SSA, and optimisation passes including SCCP, DCE and CFG simplification.
+---
+
+import ProjectMeta from '@site/src/components/ProjectMeta';
+
+# Compiler Dungeon
+
+<ProjectMeta slug="/projects/compiler-dungeon" />
+
+A personal optimising compiler written in C++, built to work through a complete
+pipeline rather than to ship a language. It is educational and experimental in
+equal parts: every stage is small enough to read end to end, but the stages are
+the real ones, in the order a production compiler would use them.
+
+The pipeline is documented, stage by stage and with an interactive compiler
+embedded in the page, in
+[the Compiler Dungeon post](/blog/2026/09/03/compiler-dungeon/intro).
+
+## Front end
+
+- Parsing the source language into an AST.
+- Bidirectional type inference — checking and inference modes over the same
+  syntax, rather than a separate constraint-solving phase.
+- Lowering to `HIR`, a high-level IR that still mirrors the language's structure.
+
+## Middle end
+
+- Three-address code, flattening expressions into explicit temporaries.
+- A control-flow graph over basic blocks.
+- SSA construction, giving each value a single definition and making data flow
+  explicit for the passes that follow.
+
+## Optimisation passes
+
+- `SCCP` — sparse conditional constant propagation, folding constants and
+  pruning branches that the propagated lattice values prove unreachable.
+- `DCE` — dead code elimination.
+- CFG simplification and unreachable-block elimination.
+- Side-effect-aware optimisation: passes have to know which operations may be
+  observed before they are allowed to move or delete them.
+
+{/* TODO: link the repository here if it should appear on this page as well; it
+    is already linked from the blog post's opening paragraph. */}

@@ -1,27 +1,42 @@
-# Website
+# samuel-malec.github.io
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Personal site of Samuel Malec — compiler engineering, programming languages and
+static analysis. Built with [Docusaurus](https://docusaurus.io/) and deployed to
+GitHub Pages by `.github/workflows/deploy.yml` on every push to `master`.
 
-## Installation
+## Layout
+
+| Route                 | Source                                      |
+| --------------------- | ------------------------------------------- |
+| `/`                   | `src/pages/index.tsx`                       |
+| `/projects`           | `src/pages/projects/index.tsx`              |
+| `/projects/<project>` | `src/pages/projects/<project>.mdx`          |
+| `/about`              | `src/pages/about.mdx`                       |
+| `/reading`            | `src/pages/reading.mdx`                     |
+| `/blog/...`           | `blog/<YYYY-MM-DD>-<slug>/<name>.mdx`       |
+
+`src/data/projects.ts` is the single source of truth for the project list: the
+home page, `/projects` and each project page's header all read from it.
+`src/data/posts.ts` controls which posts the home page links to.
+
+Blog post URLs are derived from the dated directory name, so renaming a post
+directory changes its URL.
+
+## Development
 
 ```bash
 npm install
+npm run start      # dev server with hot reload
+npm run build      # static build into build/
+npm run serve      # serve the build at http://localhost:3000
+npm run typecheck  # tsc --noEmit
 ```
 
-**Note**: feel free to use the package manager of your choice.
+`npm run build` fails on broken internal links, so a successful build means
+every internal link resolves.
 
-## Local Development
+## Open TODOs
 
-```bash
-npm run start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
-
-```bash
-npm run build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+- `static/cv.pdf` does not exist; `/about` shows a placeholder instead of a
+  download link. The markup to swap in is in a comment in `src/pages/about.mdx`.
+- No Open Graph card image; see the TODO in `docusaurus.config.ts`.
