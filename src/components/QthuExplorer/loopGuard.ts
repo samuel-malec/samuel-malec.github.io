@@ -72,7 +72,13 @@ function findLoops(source: string): LoopMatch[] {
   return loops;
 }
 
+<<<<<<< HEAD
 function findLoopIssue(source: string): string | null {
+=======
+/** Returns a human-readable reason if `source` contains a loop that looks
+ * certain to never terminate, or null if nothing suspicious was found. */
+export function findLikelyInfiniteLoop(source: string): string | null {
+>>>>>>> 0ff6011 (qthu: add primitive guards against infinite loop)
   for (const loop of findLoops(source)) {
     const conditionIds = extractIdentifiers(loop.condition);
     const bodyAndIncrement = loop.body + '\n' + loop.increment;
@@ -93,6 +99,7 @@ function findLoopIssue(source: string): string | null {
 
   return null;
 }
+<<<<<<< HEAD
 
 interface FunctionMatch {
   name: string;
@@ -195,3 +202,5 @@ function findRecursionIssue(source: string): string | null {
 export function findLikelyInfiniteLoop(source: string): string | null {
   return findLoopIssue(source) ?? findRecursionIssue(source);
 }
+=======
+>>>>>>> 0ff6011 (qthu: add primitive guards against infinite loop)
