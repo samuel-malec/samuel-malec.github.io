@@ -38,6 +38,7 @@
 
 .editorBox :global(.cm-scroller) {
   font-family: var(--ifm-font-family-monospace) !important;
+  font-size: 0.8rem !important;
 }
 
 .outputPane {
@@ -48,13 +49,17 @@
 
 .tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.25rem;
   margin-bottom: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .tab,
 .tabActive {
+  flex: none;
+  white-space: nowrap;
   border: 1px solid var(--ifm-color-emphasis-300);
   background: transparent;
   color: var(--ifm-font-color-base);

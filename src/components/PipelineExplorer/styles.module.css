@@ -46,6 +46,7 @@
 
 .editor :global(.cm-scroller) {
   font-family: var(--ifm-font-family-monospace) !important;
+  font-size: 0.8rem !important;
 }
 
 /* ---------- pipeline nav ---------- */
