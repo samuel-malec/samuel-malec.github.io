@@ -22,6 +22,8 @@ const EMPTY_RESULT: PipelineResult = {
   ast: '', hir: '', lir: '', hicthu: '', locthu: '', bytecode: '', runOutput: '', stage: '', error: '',
 };
 
+const JS_EXTENSIONS = [javascript()];
+
 export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode {
   const {colorMode} = useColorMode();
   const {module, ready, loadError} = useQthuModule();
@@ -67,7 +69,7 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
               value={source}
               height="360px"
               theme={colorMode === 'dark' ? 'dark' : 'light'}
-              extensions={[javascript()]}
+              extensions={JS_EXTENSIONS}
               onChange={setSource}
             />
           </div>

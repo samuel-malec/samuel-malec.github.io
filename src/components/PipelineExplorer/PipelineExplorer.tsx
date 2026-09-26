@@ -52,6 +52,8 @@ function representationContent(key: RepresentationKey, result: CompileResult): s
   }
 }
 
+const CPP_EXTENSIONS = [cpp()];
+
 export default function PipelineExplorer({defaultSource}: PipelineExplorerProps): ReactNode {
   const {colorMode} = useColorMode();
   const {module, ready, loadError} = useCompilerModule();
@@ -118,7 +120,7 @@ export default function PipelineExplorer({defaultSource}: PipelineExplorerProps)
               value={source}
               height="220px"
               theme={colorMode === 'dark' ? 'dark' : 'light'}
-              extensions={[cpp()]}
+              extensions={CPP_EXTENSIONS}
               onChange={setSource}
             />
           </div>

@@ -36,6 +36,10 @@
   overflow: hidden;
 }
 
+.editorBox :global(.cm-scroller) {
+  font-family: var(--ifm-font-family-monospace) !important;
+}
+
 .outputPane {
   min-width: 0;
   display: flex;

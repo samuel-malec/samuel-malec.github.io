@@ -44,6 +44,10 @@
   overflow: hidden;
 }
 
+.editor :global(.cm-scroller) {
+  font-family: var(--ifm-font-family-monospace) !important;
+}
+
 /* ---------- pipeline nav ---------- */
 
 .nav {
