@@ -4,6 +4,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import {javascript} from '@codemirror/lang-javascript';
 import {useColorMode} from '@docusaurus/theme-common';
 import {useQthuModule, type PipelineResult} from '@site/src/lib/qthuModule';
+import {findLikelyInfiniteLoop} from './loopGuard';
 import type {QthuExplorerProps} from './index';
 import styles from './styles.module.css';
 
@@ -36,6 +37,16 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
     if (!ready || !module) return;
 
     const handle = setTimeout(() => {
+      // The embedded QuickJS runtime actually executes the compiled bytecode,
+      // synchronously, on the main thread, with no time or step limit -- an
+      // infinite loop in the source freezes the whole page with no way to
+      // recover. Catch the obvious case before it ever reaches the wasm call.
+      const infiniteLoop = findLikelyInfiniteLoop(source);
+      if (infiniteLoop) {
+        setResult({...EMPTY_RESULT, error: `Not running -- ${infiniteLoop}`});
+        return;
+      }
+
       try {
         setResult(module.compile(source));
       } catch (err) {
@@ -57,7 +68,8 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
     );
   }
 
-  const runFailed = !!result?.runOutput && /exception|failed to load bytecode/i.test(result.runOutput);
+  const runFailed =
+    !!result?.error || (!!result?.runOutput && /exception|failed to load bytecode/i.test(result.runOutput));
   const runOk = !!result?.runOutput && !runFailed;
 
   return (
