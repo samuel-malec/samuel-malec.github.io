@@ -87,18 +87,6 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
         </div>
 
         <div className={styles.outputPane}>
-          <div className={styles.tabs}>
-            {TABS.map(({key, label}) => (
-              <button
-                key={key}
-                type="button"
-                className={activeTab === key ? styles.tabActive : styles.tab}
-                onClick={() => setActiveTab(key)}>
-                {label}
-              </button>
-            ))}
-          </div>
-
           {!ready && <div className={styles.loading}>Loading qthu (js2ct + ct2qjs + QuickJS)…</div>}
 
           {ready && result?.error && (
@@ -111,6 +99,18 @@ export default function Explorer({defaultSource}: QthuExplorerProps): ReactNode 
           )}
 
           {ready && <pre className={styles.output}>{result?.[activeTab] ?? ''}</pre>}
+
+          <div className={styles.tabs}>
+            {TABS.map(({key, label}) => (
+              <button
+                key={key}
+                type="button"
+                className={activeTab === key ? styles.tabActive : styles.tab}
+                onClick={() => setActiveTab(key)}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
