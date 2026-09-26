@@ -1,0 +1,55 @@
+---
+title: Dagon
+---
+
+import Todo from '@site/src/components/Todo';
+import QthuExplorer from '@site/src/components/QthuExplorer';
+
+# Dagon
+
+[github.com/samuel-malec/dagon](https://github.com/samuel-malec/dagon) · [Blog post](/blog/2026/09/13/qthu/intro)
+
+## Overview
+Cthulhu is a low-level, statically typed, functional intermediate representation,
+designed to be suitable for program transformation, testing, and verification.
+This project is a compiler toolchain that connects JavaScript to Cthulhu, and it consists of two separate compilers:
+
+- **js2ct** compiles JavaScript into Cthulhu.
+- **ct2qjs** lowers Cthulhu into QuickJS bytecode.
+
+## Why I built it
+You may wonder why both ends of the compilation pipeline are such exotic choices. It's a fair question, but the choice is deliberate.
+At FI MUNI, where I study, a [Jaculus Machine](https://machine.jaculus.org/) is developed.
+It an embeddable JavaScript runtime built on QuickJS 
+and aimed at embedded devices. My goal is to make code running on such devices analyzable.
+The idea is to use Cthulhu to analyze JavaScript applications before they run, and eventually to help establish properties such as bounded memory use for the QuickJS bytecode produced from them. Which analyses to support is still open.
+
+## How it works
+I haven't implemented the entire JavaScript language. Instead, I restricted myself to a subset of it,
+which I compile to Cthulhu and then to QuickJS bytecode. Since the supported subset is rapidly changing, I want to reffer
+interested readers to the project repository in github, where the docs are being updated regularly.
+
+## Interactive compiler
+
+<QthuExplorer defaultSource={`function fib_rec(fib1, fib2, n) {
+    if (n == 0) {
+        return fib2;
+    }
+    return fib_rec(fib2, fib1 + fib2, n - 1);
+}
+
+function fib_base(n) {
+    if (n <= 2) {
+        return 1;
+    }
+    return fib_rec(1, 1, n - 2);
+}
+
+assert( fib_base( 1 ) == 1 );
+assert( fib_base( 2 ) == 1 );
+assert( fib_base( 3 ) == 2 );
+assert( fib_base( 4 ) == 3 );
+assert( fib_base( 5 ) == 5 );
+`} />
+
+## What I would do differently

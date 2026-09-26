@@ -31,6 +31,35 @@ const config: Config = {
     ],
   ],
 
+  plugins: [
+    // Notes: a second blog instance, for short-form writing kept separate from
+    // the long-form posts in /blog.
+    [
+      '@docusaurus/plugin-content-blog',
+      {
+        id: 'notes',
+        routeBasePath: 'notes',
+        path: './notes',
+        blogTitle: 'Notes',
+        blogSidebarTitle: 'Notes',
+        showReadingTime: false,
+        onUntruncatedBlogPosts: 'ignore',
+        feedOptions: {type: 'all'},
+      },
+    ],
+    // Feeds the home page's "Latest" list from blog/ and notes/, so there is
+    // no hand-maintained list to keep in sync.
+    [
+      './src/plugins/recent-writing.js',
+      {
+        limit: 5,
+        sources: [
+          {dir: 'blog', routeBasePath: '/blog', label: 'blog'},
+        ],
+      },
+    ],
+  ],
+
   themeConfig: {
     navbar: {
       title: 'ZJBlog',
@@ -38,6 +67,15 @@ const config: Config = {
         {
           to: '/',
           label: 'Home',
+          position: 'left',
+          // Without this, Home matches every route: activeBasePath defaults to
+          // `to`, and '/' is a prefix of '/blog', '/notes' and the rest, so two
+          // items would light up at once.
+          activeBaseRegex: '^/$',
+        },
+        {
+          to: '/projects',
+          label: 'Projects',
           position: 'left',
         },
         {
@@ -48,6 +86,16 @@ const config: Config = {
         {
           to: '/reading',
           label: 'Reading',
+          position: 'left',
+        },
+        {
+          to: '/teaching',
+          label: 'Teaching',
+          position: 'left',
+        },
+        {
+          to: '/about',
+          label: 'About',
           position: 'left',
         },
       ],
