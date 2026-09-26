@@ -5913,51 +5913,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   
 
   
-  /** @param {number=} offset */
-  var doReadv = (stream, iov, iovcnt, offset) => {
-      var ret = 0;
-      for (var i = 0; i < iovcnt; i++) {
-        var ptr = HEAPU32[((iov)>>2)];
-        var len = HEAPU32[(((iov)+(4))>>2)];
-        iov += 8;
-        try {
-          var curr = FS.read(stream, HEAP8, ptr, len, offset);
-        } catch (e) {
-          // On a non-blocking stream a subsequent read may would-block after we
-          // already gathered data. POSIX readv is a single gather-read: return
-          // what we have rather than failing the whole call.
-          if (ret > 0 && e instanceof FS.ErrnoError &&
-              (e.errno == 6 || e.errno == 6)) {
-            break;
-          }
-          throw e;
-        }
-        if (curr < 0) return -1;
-        ret += curr;
-        if (curr < len) break; // nothing more to read
-        if (typeof offset != 'undefined') {
-          offset += curr;
-        }
-      }
-      return ret;
-    };
-  
-  
-  function _fd_read(fd, iov, iovcnt, pnum) {
-  try {
-  
-      var stream = SYSCALLS.getStreamFromFD(fd);
-      var num = doReadv(stream, iov, iovcnt);
-      HEAPU32[((pnum)>>2)] = num;
-      return 0;
-    } catch (e) {
-    if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
-    return e.errno;
-  }
-  }
-  
-
-  
   
   function _fd_seek(fd, offset, whence, newOffset) {
     offset = bigintToI53Checked(offset);
@@ -6172,6 +6127,7 @@ if (Module['printErr']) err = Module['printErr'];
   'getCallstack',
   'convertPCtoSourceLocation',
   'checkWasiClock',
+  'doReadv',
   'wasiRightsToMuslOFlags',
   'wasiOFlagsToMuslOFlags',
   'safeSetTimeout',
@@ -6347,7 +6303,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'UNWIND_CACHE',
   'ExitStatus',
   'getEnvStrings',
-  'doReadv',
   'doWritev',
   'initRandomFill',
   'randomFill',
@@ -6733,8 +6688,6 @@ var wasmImports = {
   environ_sizes_get: _environ_sizes_get,
   /** @export */
   fd_close: _fd_close,
-  /** @export */
-  fd_read: _fd_read,
   /** @export */
   fd_seek: _fd_seek,
   /** @export */
