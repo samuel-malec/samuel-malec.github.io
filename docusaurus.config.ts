@@ -55,7 +55,6 @@ const config: Config = {
         limit: 5,
         sources: [
           {dir: 'blog', routeBasePath: '/blog', label: 'blog'},
-          {dir: 'notes', routeBasePath: '/notes', label: 'note'},
         ],
       },
     ],
@@ -85,13 +84,13 @@ const config: Config = {
           position: 'left',
         },
         {
-          to: '/notes',
-          label: 'Notes',
+          to: '/reading',
+          label: 'Reading',
           position: 'left',
         },
         {
-          to: '/reading',
-          label: 'Reading',
+          to: '/teaching',
+          label: 'Teaching',
           position: 'left',
         },
         {

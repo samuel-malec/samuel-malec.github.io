@@ -2,34 +2,36 @@
 title: Abstract interpretation for GraalVM Native Image
 ---
 
-import Todo from '@site/src/components/Todo';
-
 # Abstract interpretation for GraalVM Native Image
 
-[github.com/S3MU1L/graal](https://github.com/S3MU1L/graal)
+[github.com/S3MU1L/graal](https://github.com/S3MU1L/graal/tree/substratevm/ai) · Bachelor's thesis, Masaryk University (2025), in collaboration with Oracle Labs
 
-<Todo>
-**What it is.** Two sentences. What the thing does, and what it runs on.
-</Todo>
+**What it is.** GraalAIF is a framework for writing static analyses based on abstract interpretation directly inside the GraalVM Native Image compiler, running on Graal IR right after the points-to analysis. I designed it and implemented it in Java, together with three sample analyses that show how to use it.
 
 ## Why I built it
 
-<Todo>
-The itch. What annoyed you, what you wanted to understand, or what the existing
-tools would not let you do. This is the part nobody else can write.
-</Todo>
+Native Image had no standard way to add a new static analysis, so every analysis had to be written from scratch, which requires deep knowledge of the compiler's internals. I wanted a reusable foundation that makes both verification-style analyses (null dereferences, division by zero, resource leaks) and optimization-driven ones much cheaper to build.
 
 ## How it works
 
-<Todo>
-The mechanism — the part you would explain on a whiteboard. Pipeline stages,
-the representation, the algorithm that does the real work. If a diagram would
-show something a paragraph cannot, this is where it goes.
-</Todo>
+You supply a few pieces, and the framework does the rest:
+
+- **Abstract domain:** an interface with `join`, `meet`, `widen`, `leq` and top/bottom. Reusable building blocks (set, map, finite, product and reduced-product domains) let you compose new domains.
+- **Abstract transformers:** `execNode` and `execEdge` simulate Graal IR nodes and control-flow merges. Nodes you don't handle fall back to a default, and a sound fallback to ⊤ is available.
+- **Fixpoint iteration:** worklist and weak-topological-ordering (WTO) strategies with widening and configurable termination limits, so a buggy domain can't hang the build.
+- **Checkers:** inspect the final abstract state to report warnings and errors, or to rewrite the IR.
+- **Interprocedural analysis:** top-down over the call graph, with a user-defined method-summary cache and a bounded recursion depth.
+
+Sample analyses built on it: a **resource-leak** analysis, an **interval** analysis, and a relational **pentagon** analysis that removes a provably unreachable branch from the Graal IR.
+
+## Results
+    - I was able to run the analyses built with GraalAIF on sample programs and discover real warnings and errors
+    - I was able to ues the information from analyses to perform intra-procedural optimizations, such as removing dead code and array bounds checks
+    - I didn't manage to create a usable inter-procedural analysis, mostly because the analysis state space was too large for the intended analyses and also the computational/theoretical limitations of this approach
 
 ## What I would do differently
 
-<Todo>
-Dead ends, things that turned out harder than expected, what is still open.
-Optional, but it is usually the most interesting section on a project page.
-</Todo>
+- Motivate the framework as a tool for creating linter-like analyses instead of analyses used for compiler optimizations
+- Add bottom-up interprocedural analysis. Mutual recursion is currently cut off, and the summary cache has no eviction policy.
+- Provide models for standard-library methods. They are currently excluded for performance, which costs precision.
+- Benchmark on far more real-world applications, and mature the pentagon analysis until it's ready for that.

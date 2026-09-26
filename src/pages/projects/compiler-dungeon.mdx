@@ -3,33 +3,89 @@ title: Compiler Dungeon
 ---
 
 import Todo from '@site/src/components/Todo';
+import PipelineExplorer from '@site/src/components/PipelineExplorer';
 
 # Compiler Dungeon
 
 [github.com/samuel-malec/compiler-dungeon](https://github.com/samuel-malec/compiler-dungeon) · [Blog post](/blog/2026/09/03/compiler-dungeon/intro)
 
-<Todo>
-**What it is.** Two sentences. What the thing does, and what it runs on.
-</Todo>
+## Overview
+
+This is an educational compiler that takes a custom expression-based language called Kerosene all the way to native code.
+It is meant to demonstrate important compiler concepts such as parsing, semantic analysis, type-checking, SSA construction, static analysis, code generation and more.
 
 ## Why I built it
-
-<Todo>
-The itch. What annoyed you, what you wanted to understand, or what the existing
-tools would not let you do. This is the part nobody else can write.
-</Todo>
+I wanted hands-on experience with the core compiler concepts.
+Before I started this project, I had either worked on projects that were too simple to go into much detail
+(such as a C-subset [compiler](https://github.com/samuel-malec/tinyc) that used LLVM for codegen), or on ones so complex
+and broad that I couldn't grasp them and was forced to treat the rest of the compiler as an API for my own purposes.
+Compiler Dungeon gives me freedom in the language design: I can try out various language constructs
+and see how they translate into the different representations along the compilation pipeline. The project is purely educational.
+I strive to follow best practices and principles, and I work on things I enjoy learning about, as opposed to trying to create the next big thing.
 
 ## How it works
 
-<Todo>
-The mechanism — the part you would explain on a whiteboard. Pipeline stages,
-the representation, the algorithm that does the real work. If a diagram would
-show something a paragraph cannot, this is where it goes.
-</Todo>
+Like basically any compiler, the workflow is divided into separate compilation passes. Each pass takes its input from the previous pass,
+executes a clearly defined piece of functionality, and hands its result to the following pass.
+
+The compilation passes implemented in Compiler Dungeon are pretty standard for mainstream compiler implementations:
+
+### 1. Tokens & parsing
+
+The lexer turns source text into a flat stream of tokens, and a Pratt parser assembles those tokens
+into an AST that mirrors the language's grammar directly — no intermediate representation yet, just
+the program's syntax as a tree.
+
+### 2. HIR
+
+The AST gets type-checked and desugared into HIR: every expression now carries the type the checker
+resolved for it, but control flow (`if`, `while`, `loop`) is still structural, not yet expressed as
+jumps between blocks.
+
+### 3. IR and SSA
+
+HIR lowers into a flat instruction sequence with explicit labels and branches, which a separate CFG
+pass then splits into basic blocks. `mem2reg` promotes local variables out of memory and into SSA
+form, where every value is defined exactly once and merge points get explicit phi nodes.
+
+### 4. SCCP
+
+Sparse Conditional Constant Propagation walks the SSA form once, tracking which values are provably
+constant and which branches are provably one-sided. Where it can prove a condition, it collapses the
+branch and deletes the code that can no longer run.
+
+### 5. DCE
+
+Dead Code Elimination removes instructions whose results are never used and which have no side
+effects. It's a natural pairing with SCCP: folding a branch or a constant is exactly what turns
+previously-live computations into dead ones.
+
+### 6. SimplifyCfg
+
+SimplifyCfg cleans up the control-flow graph that the earlier passes leave behind. Once SCCP has folded
+a branch, some blocks become unreachable and get removed. A block that has a single predecessor, which in
+turn has it as its only successor, is merged into that predecessor, and blocks containing nothing but an
+unconditional jump are bypassed. Phi nodes are updated along the way so they stay consistent with the
+new set of edges.
+
+## Further reading
+
+More posts on individual passes, and on later stages like register allocation and code generation as
+they get built, will show up under the `compiler-dungeon` tag over time.
+
+## Interactive compiler
+
+Edit the source below, then step through the pipeline with the buttons underneath it. The
+representations (Tokens, AST, HIR, IR, SSA) are what your program *looks like* at each point; SCCP and
+DCE are optimization passes that *rewrite* the SSA form rather than being representations of their
+own, so selecting one shows a before/after instead of pretending it's just another tab.
+
+<PipelineExplorer defaultSource={`fn calculate() -> i32 {
+    let x = 10 + 20;
+    let y = if x > 100 { x * 4 } else { x / 2 };
+    y
+}
+`} />
+
 
 ## What I would do differently
-
-<Todo>
-Dead ends, things that turned out harder than expected, what is still open.
-Optional, but it is usually the most interesting section on a project page.
-</Todo>

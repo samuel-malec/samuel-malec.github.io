@@ -5,7 +5,6 @@ import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 import {usePluginData} from '@docusaurus/useGlobalData';
 
-import Avatar from '@site/src/components/Avatar';
 import Todo from '@site/src/components/Todo';
 import {projects} from '@site/src/data/projects';
 
@@ -82,45 +81,6 @@ export default function Home(): ReactNode {
                   <i>All opinions presented here are my personal opinions and do not reflect the opinion of my employer.</i>
                 </p>
               </div>
-              <Avatar
-                className={styles.bioPhoto}
-                src="/img/profile_pic.jpg"
-                alt="Samuel Malec"
-                size={96}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <div className="container">
-            <div className={styles.card}>
-              <Heading as="h2">Now</Heading>
-              <Todo>
-                A line or two on what you are working on at the moment. The
-                longer version lives on the <Link to="/now">now page</Link>.
-              </Todo>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.section}>
-          <div className="container">
-            <div className={styles.card}>
-              <Heading as="h2">Selected work</Heading>
-              <ul className={styles.entries}>
-                {projects.map((project) => (
-                  <li key={project.href} className={styles.entry}>
-                    <h3 className={styles.entryTitle}>
-                      <Link to={project.href}>{project.title}</Link>
-                    </h3>
-                    <Todo inline>One line on what this is.</Todo>
-                  </li>
-                ))}
-              </ul>
-              <p className={styles.more}>
-                <Link to="/projects">All projects →</Link>
-              </p>
             </div>
           </div>
         </section>
@@ -132,7 +92,6 @@ export default function Home(): ReactNode {
               <Latest />
               <p className={styles.more}>
                 <Link to="/blog">All posts</Link> ·{' '}
-                <Link to="/notes">All notes</Link> ·{' '}
                 <Link to="/reading">Reading list</Link>
               </p>
             </div>
