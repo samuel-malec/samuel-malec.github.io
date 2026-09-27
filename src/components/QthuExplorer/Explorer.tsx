@@ -5,7 +5,6 @@ import {javascript} from '@codemirror/lang-javascript';
 import {useColorMode} from '@docusaurus/theme-common';
 import {findLikelyInfiniteLoop} from './loopGuard';
 import {useQthuModule, type PipelineResult} from '@site/src/lib/qthuModule';
-import {findLikelyInfiniteLoop} from './loopGuard';
 import type {QthuExplorerProps} from './index';
 import styles from './styles.module.css';
 
