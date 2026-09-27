@@ -1,0 +1,170 @@
+---
+tags: [graal-vm]
+---
+
+# How Graal IR Tracks Memory 🧠
+
+*This post looks at how the Graal compiler tracks memory effects in its IR, and why function calls often get in the way of optimizations. The examples come from Native Image, the ahead-of-time compiler inside [GraalVM](https://www.graalvm.org/).*
+
+## Graal IR
+
+Graal IR is the intermediate representation of the Graal compiler. Both the Graal JIT and Native Image use it.
+It is a graph-based IR, more precisely a [sea-of-nodes](https://softlib.rice.edu/pub/CRPC-TRs/reports/CRPC-TR93366-S.pdf) (SoN) representation.
+Each [node](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/graph/Node.java) roughly corresponds to a high-level instruction, such as an addition, a memory access, or a function call.
+
+There are two kinds of nodes:
+
+- [Fixed](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/FixedNode.java) nodes are pinned to a specific point in the control flow. They are connected to their neighbours via `successor` edges. `Invoke`, `If`, `Return`, and nodes with side effects are typically fixed.
+- [Floating](https://github.com/oracle/graal/blob/5d2611cedf4c733020519b2f8feeb18a66344a5a/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/calc/FloatingNode.java#L34) nodes are constrained only by their data dependencies, which are represented by `input` edges.
+
+To see what Graal IR looks like, take this Java program:
+
+```java
+public class Fibonacci {
+    public static int rec(int n, int a, int b) {
+        if (n == 0) {
+            return a;
+        }
+
+        return rec(n - 1, b, a + b);
+    }
+
+    public static int fib(int n) {
+        return rec(n, 0, 1);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(fib(5));
+    }
+}
+```
+
+The picture below shows the Graal IR of `Fibonacci::rec`. Control edges are red, data edges are blue or black.
+Control flow starts at the unique `Start` node. A `Begin` node roughly marks the beginning of a basic block.
+
+You may notice that two control edges leave the `Invoke!#Fibonacci.rec` node.
+This is because any Java call can throw an exception.
+So the call gets two successors: one for the normal return, and one for the exception path.
+`rec` has no exception handler, so the exception path ends in an `Unwind` node, which passes the exception on to the caller.
+This has nothing to do with recursion. Any call that may throw looks like this.
+
+![](../../static/img/fibonacci_ir.png)
+
+For more examples of Graal IR, take a look at Chris Seaton's [blog post](https://chrisseaton.com/truffleruby/basic-graal-graphs/).
+
+## Location Identities
+
+Graal tracks memory effects with [`LocationIdentity`](https://github.com/oracle/graal/blob/5d2611cedf4c733020519b2f8feeb18a66344a5a/sdk/src/org.graalvm.word/src/org/graalvm/word/LocationIdentity.java#L55).
+A location identity names the part of memory an operation works with.
+Two operations can only interfere if their locations *overlap*.
+The main kinds are:
+
+- `LocationIdentity.any()` means the operation *may touch any memory*. It overlaps with every other location.
+- `FieldLocationIdentity` is one identity per declared field. It is shared by all objects of that class. So `a.x` and `b.x` share a location, but `a.x` and `a.y` never do.
+- `NamedLocationIdentity` is a named "family" of locations. Examples are all `int[]` elements, or a group of internal VM fields.
+
+Two special cases are worth knowing:
+
+- Some locations are *immutable*, for example the length of an array. Nothing ever writes to them after allocation, so reading them needs no ordering at all.
+- `LocationIdentity.init()` is used for writes that initialize a freshly allocated object. Nobody else can see that object yet, so these writes don't interfere with normal reads.
+
+A node that *reads* memory implements `MemoryAccess`. It has a location and a [`lastLocationAccess`](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/memory/FixedAccessNode.java#L123) input, which points to the most recent node that changed that location.
+A node that *may change* memory implements `SingleMemoryKill` or `MultiMemoryKill`, depending on how many locations it kills.
+Such nodes are called *kills*. Writes are kills, but so are calls and memory barriers.
+
+## Calls Kill Everything
+
+A call is an [`InvokeNode`](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/InvokeNode.java#L71).
+It is a `SingleMemoryKill`, and its location [defaults to `any()`](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/InvokeNode.java#L92-L94).
+So a call kills everything.
+The same holds for [`InvokeWithExceptionNode`](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/nodes/InvokeWithExceptionNode.java#L69).
+
+This is a safe default. The compiler doesn't know what the callee does, so it assumes the worst.
+Once the call is inlined, the callee's real reads and writes become visible, and the `any()` kill disappears.
+
+## Floating Reads and Scheduling
+
+Fixed nodes keep their position in the control flow. Location identities don't change that.
+Location identities matter once reads become *floating*.
+
+The phase that does this is [`FloatingReadPhase`](https://github.com/oracle/graal/blob/54a25dd6aba9bd7732247a7d1971f9bbd496ec2f/compiler/src/jdk.graal.compiler/src/jdk/graal/compiler/phases/common/FloatingReadPhase.java#L86).
+It walks the fixed nodes and keeps a map from each location to its last kill.
+Each read becomes a floating read, and its `lastLocationAccess` points to the last kill of *its own* location.
+Where control flow merges, the phase adds a memory phi for each location that differs between the paths.
+After this phase, reads float, but writes stay fixed.
+
+The result is that a read of `a.x` no longer cares about an earlier write to `b.y`.
+It is only ordered after the last write to field `x`.
+This lets the compiler remove duplicate reads and move reads out of loops.
+
+Later, the scheduler has to give every floating node a place in the control flow again.
+For a floating read, there are two limits:
+
+- **The earliest point** comes from the `lastLocationAccess` edge. The read cannot move above the last kill of its location.
+- **The latest point** has no edge in the graph. The read must not move below the *next* kill of an overlapping location. The scheduler works this out itself: it checks the blocks between the two points, and pulls the read up if one of them kills its location.
+
+Note that two reads of the same location don't need any order between them. Only reads and kills must stay in order.
+
+## Where `any()` Hurts
+
+Because a call kills `any()`, it blocks every optimization that needs to move a memory access past it.
+In the two examples below, the compiler could know that the call doesn't touch a certain location.
+But Graal IR doesn't record this, so the optimization is blocked.
+
+### Example I: Loop-Invariant Read
+
+Consider:
+
+```java
+public class Demo {
+    static class Counter { int value; }
+    static class Config { int limit; }
+
+    static void bump(Counter counter) {
+        counter.value++;
+    }
+
+    static void process(Counter counter, Config config, int n) {
+        for (int i = 0; i < n; i++) {
+            bump(counter);
+            if (i > config.limit) {
+                break;
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        Config config = new Config();
+        Counter counter = new Counter();
+        config.limit = 10;
+        process(counter, config, 10);
+        System.out.println(counter.value);
+    }
+}
+```
+
+Nothing in the loop writes to `config.limit`, so the read is loop invariant.
+We would like to hoist it out of the loop.
+
+In our build, `bump` was not inlined, so the call stays in the graph.
+<!-- TODO: name the phase this graph was dumped at -->
+The loop starts at the `8 LoopBegin` node.
+The memory operations `23`, `24`, and `31` stay in order, and the read of `config.limit` is not hoisted.
+
+![](../../static/img/process_ir.png)
+
+This is the `any()` problem from above.
+`Config.limit` and `Counter.value` are different fields, so their location identities don't overlap.
+The call to `bump` kills `any()`, though, and `any()` overlaps with everything.
+So the loop body kills `Config.limit` on every iteration, as far as the compiler knows.
+The read has to stay after the call, inside the loop.
+
+If `bump` were inlined, the only kill in the loop would be the write to `Counter.value`.
+The read of `config.limit` could then be moved out of the loop.
+
+## Summary
+
+- `LocationIdentity` names the part of memory an operation works with. Accesses to different locations don't interfere.
+- `FloatingReadPhase` lets reads float. Each read is tied only to the last kill of its own location.
+- The scheduler places reads between the last kill and the next kill of their location.
+- Calls kill `any()` by default. Unless the call is inlined, this blocks optimizations like hoisting reads out of loops.
