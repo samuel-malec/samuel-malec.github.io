@@ -116,7 +116,7 @@ But Graal IR doesn't record this, so the optimization is blocked.
 Consider:
 
 ```java
-public class Demo {
+public class ExampleI {
     static class Counter { int value; }
     static class Config { int limit; }
 
@@ -151,7 +151,7 @@ In our build, `bump` was not inlined, so the call stays in the graph.
 The loop starts at the `8 LoopBegin` node.
 The memory operations `23`, `24`, and `31` stay in order, and the read of `config.limit` is not hoisted.
 
-![](../../static/img/process_ir.png)
+![](../../static/img/exampleI_graal_memory_model.png)
 
 This is the `any()` problem from above.
 `Config.limit` and `Counter.value` are different fields, so their location identities don't overlap.
