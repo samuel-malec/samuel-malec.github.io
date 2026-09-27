@@ -1,0 +1,185 @@
+# Side-Effect Analysis 👀
+
+*Making memory side effects ordinary values in a compiler's intermediate representation*
+
+## Overview
+
+Whole-program, sound, interprocedural analyses are really hard to implement efficiently and correctly.
+They have to work on the entire program at once and handle every detail that comes with that: context sensitivity, function summaries, recursion, virtual calls, and so on.
+That's why industrial compilers do most of their reasoning one function at a time, and rely on inlining to see a little further.
+
+We want to sidestep this difficulty rather than solve it.
+Our goal is to make side effects *explicit in the program representation*, so that analyses and optimizations can reason about them as ordinary data dependencies.
+This post introduces the core idea, the representation we build it on, and the plan for trying it out in a real compiler.
+
+## Core Idea
+
+The main idea is to represent side effects as explicit values.
+A conventional function can be viewed as:
+
+```
+f : arguments → result
+```
+
+A function with an explicit *state* (or *effect*) token is the same function with one extra argument and one extra result:
+
+```
+f : state × arguments → result × state
+```
+
+The state token stands for the part of the program state that the function may observe or modify.
+For I/O, for example, we can introduce a token called `world`:
+
+```
+io_read  : world × fd → value × world
+io_write : world × fd × value → world
+```
+
+The important property is that the state is now a *value*, and values have data dependencies.
+In the sequence
+
+```
+w1 ← io_write(w0, fd, 3)
+w2 ← io_write(w1, fd, 4)
+```
+
+the second write needs `w1`, which only the first write produces: `w0 → io_write → w1 → io_write → w2`.
+The order of the two writes no longer depends on the order of the statements. It is data flow, the same kind of dependency as the one between `x = a + b` and `y = x * 2`.
+
+A nice side effect (pun intended): the signature now says what a function does.
+A function that takes a `world` may do I/O. A function that takes no token at all is pure.
+
+### From I/O to the heap
+
+The same trick works for memory.
+We add a `heap` token and thread it through every load and store:
+
+```
+store : heap × ref × value → heap
+load  : heap × ref → value × heap
+```
+
+With a single `heap`, though, *every* memory operation ends up on one chain, so everything stays ordered after everything else.
+Instead, we split the heap into non-overlapping parts and give each part its own token:
+
+```
+counter_heap   -- the fields of Counter objects
+logger_heap    -- the fields of Logger objects
+config_heap    -- the fields of Config objects
+```
+
+Now look at two stores to unrelated objects:
+
+```
+c1 ← store(c0, counter.value, 1)     -- consumes and produces counter_heap
+l1 ← store(l0, logger.count, 7)      -- consumes and produces logger_heap
+```
+
+Neither store needs anything the other one produces. There is no data dependency between them, so we are free to swap them, just as we could swap two pure operations like `a + b` and `c * d`.
+Operations on the *same* part keep their order. A load of `counter.value` needs the `counter_heap` produced by the store before it, so it can't move above that store.
+
+In short: **operations connected by data flow must keep their order. Operations with no data path between them can be moved freely.**
+Code motion, and as we will see, removing dead code, then comes down to following data flow.
+This only works if *every* effect is in the representation. Exceptions are effects too, and we will come back to them.
+
+## SSU
+
+So what kind of representation suits these tokens? Well, let's construct it together.
+The first important thing we must realize is that an effect token (heap, I/O, ...) is a perfect example of a *linear* value: it must be used **exactly once**.
+A token can't be **duplicated**. Two operations consuming the same `w0` would mean two different futures of the same world, and the program only gets one.
+And it also can't be **dropped**. Throwing `w1` away would mean forgetting that the write happened.
+
+These are exactly the properties we would intuitively expect from an "effect" type.
+
+Now suppose we track a `world` token through an `if-else`, where each branch does some I/O
+(TODO: how to 'manage' linear typed values in control flow, we can't dup them, did we ever solve this in Cthu design ? )
+
+When control flow *splits*, `w0` has to go into both branches. That looks like a duplication, the one thing we just ruled out.
+It's fine because only one of the branches actually runs. So this isn't a real copy, it's a *fork* into two mutually exclusive paths, 
+and we treat it as a different operation from duplication.
+
+When control flow *merges*, we have `w1` from one branch and `w2` from the other, and we must `join` them into a single `w3`.
+If that looks familiar, it should: it's a phi-node, exactly as in SSA.
+
+This brings us to **SSU**, *static single use* form.
+It is SSA with one extra rule: every value is *used* exactly once, not just defined exactly once.
+If an ordinary value (an integer, a reference) is needed twice, the program has to say so with an explicit `dup`.
+Effect tokens can't be `dup`-ed at all; the only way to split one is a `fork` at a branch.
+
+Why bother?
+Because in SSU every use of a value is visible, so the question *"who observes this value?"* can be answered by reading the graph.
+For heap tokens, that is exactly what we want to know. Take:
+
+```
+c1 ← store(c0, counter.value, 1)
+...                                  -- anything that doesn't use c1
+c2 ← store(c1, counter.value, 2)
+```
+
+If the second store is the *only* use of `c1`, nothing ever observes the value `1`, so the first store is dead, and we know that without running any analysis.
+If something in between could read `counter.value`, it would have to take `counter_heap`, which would give `c1` a second use.
+We will meet this example again with real code.
+
+## Implementation
+
+The concrete experimental setting for this work is **Native Image**, the ahead-of-time compiler in GraalVM.
+Two of its parts matter to us:
+
+- a whole-program **points-to analysis**, which works out which objects each reference may point to, and along the way, which fields each method reads and writes;
+- the **Graal compiler**, which then compiles each method using Graal IR, a sea-of-nodes representation.
+
+I'll say *Native Image* when I mean the analysis, and *Graal* when I mean the compiler and its IR.
+
+I wrote a [separate post](/blog/2026/09/27/graal-memory/intro) about how Graal models memory, and I'll refer to it several times.
+The short version: Graal treats every call as if it could change *any* memory, and that blocks optimizations around calls.
+The obvious fix is to tell the compiler what a call actually changes.
+But the IR can only record what a call *writes*. Nothing in it can say what a call *reads* (well, there have been some attempts such as [TESA](https://github.com/oracle/graal/pull/12559)).
+Some optimizations, such as removing the dead store above, need exactly that, which is why we want both sides in the representation.
+
+The plan:
+
+1. **Export** Native Image's points-to results: for every method, the fields it reads, the fields it writes, and the methods it may call.
+2. **Derive the effects.** Split the heap into partitions, and compute which partitions each function touches, including through the functions it calls. That gives each function's token signature.
+3. **Convert** Graal IR into SSU form, with the tokens as extra parameters and return values.
+4. **Optimize** there, and **convert back** into Graal IR, so the result can be compared with, and used by, the real compiler.
+
+*Status: steps 1 and 2 already work on real programs, and the SSU form exists as a Python prototype. Steps 3 and 4 aren't built yet.*
+
+In the following sections, we will go through the stages of the implementation and discuss the good, the bad, and the ugly decisions we made along the way.
+
+## Exporting Native Image's Points-to Information
+
+{/*
+  Outline, from the repo (graal-export/ and docs/thesis/NOTES.md):
+  - Native Image has a standalone points-to analyzer (PointsToAnalyzer). It runs on plain
+    class files with no image build and no mx, in about 120 ms on a small program.
+  - Per method we export: fields read (LoadFieldTypeFlow), fields written
+    (StoreFieldTypeFlow), and callees resolved by points-to (InvokeTypeFlow).
+    An interface call with two implementations reports both targets.
+  - Granularity is one entry per declared field, the same as Graal's FieldLocationIdentity.
+    It is not per object: all Counter objects share Counter.value.
+  - Gotcha: store flows are not in getNodeFlows(), only in flows(). With the former,
+    every method silently reports no writes.
+  - Gotcha: invokedynamic (lambdas, string concatenation) ends reachability in
+    standalone mode, and only classes on the target classpath are analysed deeply.
+  - Platform methods such as println show up as callees with no facts. Treat them as
+    unknown, never as pure.
+*/}
+
+## Heap Modelling
+
+{/*
+  Outline, from the repo (prototype/ and docs/overview.md):
+  - A partition is a set of heap locations with its own token. Partitions never overlap.
+  - Candidate schemes: per declared type, per field, per allocation site, per alias set.
+  - The scheme does not change the IR. A partition is one token and one parameter
+    position, so different schemes can be compared on the same encoding.
+  - Soundness rule: two operations may be treated as independent only if they can
+    never touch the same concrete state.
+  - Measured on the native-image driver (2,218 methods, 283 per-type partitions):
+    11.9 percent touch no memory, 40.9 percent name 1 to 5 partitions, and 43.5 percent
+    name more than half of all of them. Local effects are a median of 1 partition;
+    the saturation comes from following calls.
+  - 19 percent of pairs of calls in one method touch disjoint partitions. About 70
+    percent of that comes from partitioning, not from purity.
+*/}
