@@ -92,7 +92,6 @@ And it also can't be **dropped**. Throwing `w1` away would mean forgetting that 
 These are exactly the properties we would intuitively expect from an "effect" type.
 
 Now suppose we track a `world` token through an `if-else`, where each branch does some I/O
-(TODO: how to 'manage' linear typed values in control flow, we can't dup them, did we ever solve this in Cthu design ? )
 
 When control flow *splits*, `w0` has to go into both branches. That looks like a duplication, the one thing we just ruled out.
 It's fine because only one of the branches actually runs. So this isn't a real copy, it's a *fork* into two mutually exclusive paths, 
@@ -128,58 +127,206 @@ Two of its parts matter to us:
 - a whole-program **points-to analysis**, which works out which objects each reference may point to, and along the way, which fields each method reads and writes;
 - the **Graal compiler**, which then compiles each method using Graal IR, a sea-of-nodes representation.
 
-I'll say *Native Image* when I mean the analysis, and *Graal* when I mean the compiler and its IR.
-
 I wrote a [separate post](/blog/2026/09/27/graal-memory/intro) about how Graal models memory, and I'll refer to it several times.
 The short version: Graal treats every call as if it could change *any* memory, and that blocks optimizations around calls.
 The obvious fix is to tell the compiler what a call actually changes.
 But the IR can only record what a call *writes*. Nothing in it can say what a call *reads* (well, there have been some attempts such as [TESA](https://github.com/oracle/graal/pull/12559)).
 Some optimizations, such as removing the dead store above, need exactly that, which is why we want both sides in the representation.
-
-The plan:
-
-1. **Export** Native Image's points-to results: for every method, the fields it reads, the fields it writes, and the methods it may call.
-2. **Derive the effects.** Split the heap into partitions, and compute which partitions each function touches, including through the functions it calls. That gives each function's token signature.
-3. **Convert** Graal IR into SSU form, with the tokens as extra parameters and return values.
-4. **Optimize** there, and **convert back** into Graal IR, so the result can be compared with, and used by, the real compiler.
-
-*Status: steps 1 and 2 already work on real programs, and the SSU form exists as a Python prototype. Steps 3 and 4 aren't built yet.*
-
-In the following sections, we will go through the stages of the implementation and discuss the good, the bad, and the ugly decisions we made along the way.
+In the following sections, I will provide insights of the implementation and discuss important decisions made along the way.
 
 ## Exporting Native Image's Points-to Information
 
-{/*
-  Outline, from the repo (graal-export/ and docs/thesis/NOTES.md):
-  - Native Image has a standalone points-to analyzer (PointsToAnalyzer). It runs on plain
-    class files with no image build and no mx, in about 120 ms on a small program.
-  - Per method we export: fields read (LoadFieldTypeFlow), fields written
-    (StoreFieldTypeFlow), and callees resolved by points-to (InvokeTypeFlow).
-    An interface call with two implementations reports both targets.
-  - Granularity is one entry per declared field, the same as Graal's FieldLocationIdentity.
-    It is not per object: all Counter objects share Counter.value.
-  - Gotcha: store flows are not in getNodeFlows(), only in flows(). With the former,
-    every method silently reports no writes.
-  - Gotcha: invokedynamic (lambdas, string concatenation) ends reachability in
-    standalone mode, and only classes on the target classpath are analysed deeply.
-  - Platform methods such as println show up as callees with no facts. Treat them as
-    unknown, never as pure.
-*/}
+Native Image runs its points-to analysis as one step of building an image.
+Starting from `main`, it works out:
 
-## Heap Modelling
+- which methods are **reachable**, meaning they might be invoked at run time;
+- for every call site, which methods it may **actually call**, even when the call is virtual;
+- the **type flows**: which types of objects may flow through each value in the program.
 
-{/*
-  Outline, from the repo (prototype/ and docs/overview.md):
-  - A partition is a set of heap locations with its own token. Partitions never overlap.
-  - Candidate schemes: per declared type, per field, per allocation site, per alias set.
-  - The scheme does not change the IR. A partition is one token and one parameter
-    position, so different schemes can be compared on the same encoding.
-  - Soundness rule: two operations may be treated as independent only if they can
-    never touch the same concrete state.
-  - Measured on the native-image driver (2,218 methods, 283 per-type partitions):
-    11.9 percent touch no memory, 40.9 percent name 1 to 5 partitions, and 43.5 percent
-    name more than half of all of them. Local effects are a median of 1 partition;
-    the saturation comes from following calls.
-  - 19 percent of pairs of calls in one method touch disjoint partitions. About 70
-    percent of that comes from partitioning, not from purity.
-*/}
+Almost all of this is useful to us.
+From it, we export, for each method, the fields it reads, the fields it writes, and the methods it may call.
+
+### Where the export plugs in
+
+We don't need an image, only the analysis.
+Conveniently, the Graal repository also packages the points-to analysis as a *standalone* tool: the same analysis without the image build around it, running on an ordinary JVM against any classpath with a `main`.
+Our exporter is a small Java program that uses it as a library.
+It runs the analysis until it reaches its fixpoint, then walks the results and writes them out as JSON.
+Nothing inside Graal calls the exporter, and nothing has to: once the analysis returns, every fact is final, and we just read them.
+Exporting one of our examples takes a few seconds.
+
+### Which graph we export
+
+The analysis doesn't work on bytecode directly.
+It parses every reachable method into a Graal IR graph and builds its type flows from that graph.
+We export that same graph, rebuilt the same way, so that the graph and the facts agree: the callees attached to a call node are the ones the analysis found for exactly that call.
+
+Before building the type flows, the analysis tidies each graph up a little:
+
+- **canonicalization** folds constants and simplifies expressions;
+- **conditional elimination** removes conditions that are already known, mostly repeated null checks;
+- **partial escape analysis** removes allocations of objects that never escape the method.
+
+There is no inlining.
+The standalone analyzer doesn't inline anything before the analysis (a full Native Image build would inline small methods at this point), and none of the compiler's later phases run.
+A call in the source is still a call in the graph, and that's what we want: calls are where the interesting effects hide.
+
+Escape analysis has one visible consequence.
+An object that never escapes disappears completely, but one that does escape is only created at the point where it escapes, in a form our translation doesn't handle yet.
+It can be switched off with `-H:-EscapeAnalysisBeforeAnalysis`.
+
+### What we export
+
+The export has two parts.
+The first is the **facts**, for every reachable method, JDK included:
+
+```json
+"Examples.countInto(LExamples$Logger;LExamples$Link;)V": {
+  "reads": ["Examples$Link.next", "Examples$Logger.count"],
+  "writes": ["Examples$Logger.count"],
+  "callees": ["Examples.countInto(LExamples$Logger;LExamples$Link;)V"],
+  "allocates": false,
+  "unknown": [],
+  "unresolved": []
+}
+```
+
+Methods are named together with their JVM descriptor, so overloads stay apart: our examples have two `countInto`s, one for a `Counter` and one for a `Logger`.
+Besides reads, writes and callees, each method says whether it allocates, which of its memory effects can't be named by a field (a monitor, a `volatile` access, a fence), and which of its calls the analysis couldn't resolve.
+The signatures need all three, as we'll see.
+
+The second part is the **graphs** of the program's own methods.
+Graal IR is a sea of nodes with no fixed order, so we ask Graal to schedule each graph and export the result: basic blocks with their predecessors and successors, and in every block, its nodes in order.
+A call node carries what the analysis found out about it:
+
+```json
+{"id": 27, "op": "InvokeWithException", "args": [1, 25], "bci": 19,
+ "target": "Examples.countInto(LExamples$Logger;LExamples$Link;)V",
+ "callees": ["Examples.countInto(LExamples$Logger;LExamples$Link;)V"]}
+```
+
+Here `1` is `logger` and `25` is the load of `link.next`.
+Everything after this point, the signatures and the translation, works on this JSON alone.
+
+### Things we learned the hard way
+
+At first we exported facts only for the program's own methods.
+Then every constructor, and every method that creates an object, looked like it could touch anything, because every constructor calls `Object.<init>`, which had no facts.
+So now every reachable method gets facts, and the JDK's fields go into the rest of memory.
+
+The analysis records field accesses in its type flows, but only for the kinds of values it tracks, and `float` and `double` aren't among them.
+So the exporter also reads field loads and stores off each graph; otherwise a method that writes a `double` field would look like it writes nothing at all.
+
+And the analysis believes what it sees.
+`System.out` is set by native code, so as far as the analysis can tell, it is always `null`.
+It concludes that every `System.out.println` throws, and treats the code after it as unreachable.
+That's why the `println`s in our examples come last.
+
+## Heap Modelling & partitioning
+
+The simplest heap model is the one from the start of this post: a single `heap` token, threaded through every load, every store and every call.
+It is trivially sound, because nothing can ever be reordered, and it is exactly as pessimistic as that sounds.
+Every memory operation sits on one long chain, and every call is ordered against everything, which is more or less where Graal stands whenever it meets a call.
+To do better, we cut the heap into pieces.
+
+Cutting is only safe if the pieces really are separate.
+A partitioning is **sound** when every memory location belongs to *exactly one* partition.
+At least one, so that no store slips past the tokens unnoticed.
+And at most one, so that two operations on the same location can never end up on two different chains, where they would look independent and could be swapped.
+
+So how do we cut?
+The overview split the heap by class (`counter_heap`, `logger_heap`).
+The implementation goes one step finer and gives **every field of the program its own partition**, named by its declaring class and name: `Counter.value`, `Counter.other`, `Logger.count`.
+Fields are attractive because Java's type system already guarantees they are disjoint: `counter.value` and `logger.count` are different memory no matter which objects `counter` and `logger` point to.
+We don't have to ask the points-to analysis to know that, so we can't be misled by it either.
+(The ways around the type system, such as `Unsafe`, JNI and reflection, end up in code we treat as touching everything, as we'll see shortly.)
+The price is that all `Counter` objects share one partition: stores to `a.value` and `b.value` stay ordered even when `a` and `b` are different objects.
+Splitting further, say by allocation site, would make soundness depend on the points-to analysis being right.
+That's a story for another post.
+
+Arrays get one partition per element kind: `int[]`, `long[]`, `char[]` and so on, since an `int` element never lives in a `long[]`.
+There are two wrinkles.
+`boolean[]` and `byte[]` share a partition, because the JVM accesses both with the same instructions (`baload` and `bastore`).
+And all arrays of references share a single `Object[]` partition, because Java arrays are covariant: a `String[]` can be passed around as an `Object[]`, so a store through an `Object[]` may well land in a `String[]`.
+
+Everything else goes into one last partition, **the rest of memory**, written `*`.
+It holds the JDK's own fields (there are thousands of them, and what we care about is the program's), plus memory that no field names at all, like the allocator's bookkeeping.
+That's why an allocation touches `*`.
+
+Here is the dead store from the SSU section again, this time as real code:
+
+```java
+static void deadStoreOtherField(Counter counter) {
+    counter.value = 1;   // dead
+    counter.other = 7;
+    counter.value = 2;
+}
+```
+
+With a single heap token, all three stores form one chain, and the heap produced by the first store is consumed by the store to `other`, which doesn't overwrite `value`.
+With a token per field, the chains come apart:
+
+```
+v1 ← store(v0, counter.value, 1)
+o1 ← store(o0, counter.other, 7)
+v2 ← store(v1, counter.value, 2)
+```
+
+The only use of `v1` is another store to the same field, so nothing can ever observe the `1`: the first store is dead.
+
+### Computing method signatures
+
+Loads and stores know their partition from the field they access.
+Calls are the interesting part.
+A call has to take the token of every partition the callee *might* touch, including everything the callee calls in turn.
+That set of partitions is the method's **signature**, and in Cthulhu it becomes the function's type: one heap token in and one out for each partition in the signature.
+
+We compute signatures from the exported facts.
+Every method starts with the partitions its own field and array accesses touch.
+Then we keep adding the signatures of its callees, until nothing changes anymore.
+This is where the points-to analysis comes in after all: it provides the call graph, so a virtual call contributes every method it may dispatch to.
+Recursion is no problem.
+The sets only ever grow and there are finitely many partitions, so the iteration has to stop.
+
+Take a recursive method that counts the links of a list into a logger:
+
+```java
+static void countInto(Logger logger, Link link) {
+    if (link != null) {
+        logger.count++;
+        countInto(logger, link.next);
+    }
+}
+```
+
+It reads `Link.next` and reads and writes `Logger.count`, and its recursive call adds nothing new, so its signature is exactly those two partitions.
+A caller passes it those two tokens and nothing else:
+
+```java
+static int forwardAcrossWritingCall(Counter counter, Logger logger, Link list) {
+    counter.value = 5;
+    countInto(logger, list);
+    return counter.value;
+}
+```
+
+```
+v1     ← store(v0, counter.value, 5)
+n1, l1 ← countInto(n0, l0, logger, list)   -- Link.next, Logger.count
+x, v2  ← load(v1, counter.value)
+```
+
+The load takes `v1`, which comes straight from the store, so it must read `5`.
+That's store-to-load forwarding, read directly off the data flow.
+With one heap token, the call would sit between the store and the load, and we would have to load again.
+
+Sometimes we simply don't know what a method does.
+It may call a native method, which has no bytecode and therefore no facts.
+The points-to analysis may have found no target for a call.
+Or the method may do something the facts can't express in terms of fields: enter a monitor, access a `volatile` field, issue a memory fence, or poke at memory through `Unsafe`.
+Monitors and volatiles don't write any particular field, but they order memory as other threads see it, so they have to stay ordered against everything.
+In all of these cases the method **touches everything**: it takes every token, and so does every method that calls it, directly or not.
+Unknown effects are never assumed absent.
+That keeps the signatures sound, though not always precise.
+And the precision is sobering: in a small test program whose reachable code, JDK included, has 1,734 methods, 1,034 of them still touch everything, mostly because somewhere down the call graph they reach a native method.
+Teaching the analysis what common natives actually do is high on the list.
