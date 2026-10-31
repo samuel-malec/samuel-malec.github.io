@@ -1,259 +1,110 @@
 # Side-Effect Analysis 👀
 
-*Making memory side effects ordinary values in a compiler's intermediate representation*
+*A compiler has to assume that any function call can change any memory. Native Image already knows better. This post is about handing that knowledge to Graal, and about the small model that tells us it is right.*
 
-## Overview
+## The Call in the Middle
 
-Whole-program, sound, interprocedural analyses are really hard to implement efficiently and correctly.
-They have to work on the entire program at once and handle every detail that comes with that: context sensitivity, function summaries, recursion, virtual calls, and so on.
-That's why industrial compilers do most of their reasoning one function at a time, and rely on inlining to see a little further.
+What does `demo` return?
 
-We want to sidestep this difficulty rather than solve it.
-Our goal is to make side effects *explicit in the program representation*, so that analyses and optimizations can reason about them as ordinary data dependencies.
-This post introduces the core idea, the representation we build it on, and the plan for trying it out in a real compiler.
+```java
+static class Counter { int value; int other; }
+static class Logger { int count; }
+static class Link { Link next; }
 
-## Core Idea
+static void countInto(Logger logger, Link link) {
+    if (link != null) {
+        logger.count++;
+        countInto(logger, link.next);
+    }
+}
 
-The main idea is to represent side effects as explicit values.
-A conventional function can be viewed as:
+static int demo(Counter counter, Logger logger, Link list) {
+    counter.value = 5;
+    countInto(logger, list);
+    return counter.value;
+}
+```
+
+It returns 5, and you didn't need to study `countInto` to know it.
+It walks a list and bumps a `Logger`.
+It never touches a `Counter`.
+
+Graal can't see that.
+A call that isn't inlined is assumed to write *any* memory, as I described in the [Graal memory post](/blog/2026/09/27/graal-memory/intro).
+So after the call it loads `counter.value` again.
+I built this with Native Image and counted: one load of `counter.value` is left after the call.
+
+Then I gave Graal one extra fact: this call writes `Logger.count` and nothing else.
+The load is gone.
+The store and the call stay, and the program prints what it printed before.
+
+*(`countInto` is recursive on purpose, so the inliner gives up and the call stays a call.
+I also switched off Native Image's trivial inlining, because in a toy program everything else lands in `main`.)*
+
+This post is about where that fact comes from, and why you can trust it.
+
+## Effects as Values
+
+How do you tell a compiler what a function touches?
+Put it in the function's type.
 
 ```
 f : arguments → result
+f : world × arguments → world × result
 ```
 
-A function with an explicit *state* (or *effect*) token is the same function with one extra argument and one extra result:
+The second `f` takes a `world` and hands one back.
+The world stands for whatever the function may observe or change: I/O, memory, exceptions.
+Haskell's `IO` is built this way.
+Underneath, an `IO a` is a function from a token for the real world to a new token and an `a`.
 
-```
-f : state × arguments → result × state
-```
-
-The state token stands for the part of the program state that the function may observe or modify.
-For I/O, for example, we can introduce a token called `world`:
-
-```
-io_read  : world × fd → value × world
-io_write : world × fd × value → world
-```
-
-The important property is that the state is now a *value*, and values have data dependencies.
-In the sequence
+Once the world is a value, order is a data dependency:
 
 ```
 w1 ← io_write(w0, fd, 3)
 w2 ← io_write(w1, fd, 4)
 ```
 
-the second write needs `w1`, which only the first write produces: `w0 → io_write → w1 → io_write → w2`.
-The order of the two writes no longer depends on the order of the statements. It is data flow, the same kind of dependency as the one between `x = a + b` and `y = x * 2`.
+The second write needs `w1`, and only the first write makes one.
+Nothing has to say "this statement, then that one".
+It is the same kind of dependency as `x = a + b` followed by `y = x * 2`.
 
-A nice side effect (pun intended): the signature now says what a function does.
-A function that takes a `world` may do I/O. A function that takes no token at all is pure.
+## Cutting the Heap
 
-### From I/O to the heap
-
-The same trick works for memory.
-We add a `heap` token and thread it through every load and store:
+Memory is an effect too, so give it a token:
 
 ```
 store : heap × ref × value → heap
 load  : heap × ref → value × heap
 ```
 
-With a single `heap`, though, *every* memory operation ends up on one chain, so everything stays ordered after everything else.
-Instead, we split the heap into non-overlapping parts and give each part its own token:
+With a single `heap`, every load, store and call sits on one long chain, and nothing can move past anything.
+That is roughly where Graal stands at every call it doesn't inline.
+(For plain loads and stores it does better, because it keeps a location per field.
+Calls are what spoil it.)
+
+So cut the heap into pieces, each with its own token:
 
 ```
-counter_heap   -- the fields of Counter objects
-logger_heap    -- the fields of Logger objects
-config_heap    -- the fields of Config objects
+c1 ← store(c0, counter.value, 1)    -- takes and returns the Counter.value token
+l1 ← store(l0, logger.count, 7)     -- takes and returns the Logger.count token
 ```
 
-Now look at two stores to unrelated objects:
+Neither store needs anything the other makes.
+There is no data path between them, so they can swap, like `a + b` and `c * d`.
+Two operations on the same piece keep their order.
 
-```
-c1 ← store(c0, counter.value, 1)     -- consumes and produces counter_heap
-l1 ← store(l0, logger.count, 7)      -- consumes and produces logger_heap
-```
+We start with the finest cut Java's types give us for free: **one piece per field**.
+`Counter.value`, `Counter.other` and `Logger.count` are different memory whatever the references point to.
+The price is that all `Counter` objects share `Counter.value`.
+Arrays get a piece per element type, except that all arrays of references share one, because a `String[]` can pass for an `Object[]`.
+Everything else, like the JDK's own fields, goes into a last piece, `*`.
 
-Neither store needs anything the other one produces. There is no data dependency between them, so we are free to swap them, just as we could swap two pure operations like `a + b` and `c * d`.
-Operations on the *same* part keep their order. A load of `counter.value` needs the `counter_heap` produced by the store before it, so it can't move above that store.
+One rule keeps the cut honest: **every location lives in exactly one piece.**
+In none, and a store slips past the tokens.
+In two, and operations on one location sit on different chains, look independent, and get swapped.
 
-In short: **operations connected by data flow must keep their order. Operations with no data path between them can be moved freely.**
-Code motion, and as we will see, removing dead code, then comes down to following data flow.
-This only works if *every* effect is in the representation. Exceptions are effects too, and we will come back to them.
-
-## SSU
-
-So what kind of representation suits these tokens? Well, let's construct it together.
-The first important thing we must realize is that an effect token (heap, I/O, ...) is a perfect example of a *linear* value: it must be used **exactly once**.
-A token can't be **duplicated**. Two operations consuming the same `w0` would mean two different futures of the same world, and the program only gets one.
-And it also can't be **dropped**. Throwing `w1` away would mean forgetting that the write happened.
-
-These are exactly the properties we would intuitively expect from an "effect" type.
-
-Now suppose we track a `world` token through an `if-else`, where each branch does some I/O
-
-When control flow *splits*, `w0` has to go into both branches. That looks like a duplication, the one thing we just ruled out.
-It's fine because only one of the branches actually runs. So this isn't a real copy, it's a *fork* into two mutually exclusive paths, 
-and we treat it as a different operation from duplication.
-
-When control flow *merges*, we have `w1` from one branch and `w2` from the other, and we must `join` them into a single `w3`.
-If that looks familiar, it should: it's a phi-node, exactly as in SSA.
-
-This brings us to **SSU**, *static single use* form.
-It is SSA with one extra rule: every value is *used* exactly once, not just defined exactly once.
-If an ordinary value (an integer, a reference) is needed twice, the program has to say so with an explicit `dup`.
-Effect tokens can't be `dup`-ed at all; the only way to split one is a `fork` at a branch.
-
-Why bother?
-Because in SSU every use of a value is visible, so the question *"who observes this value?"* can be answered by reading the graph.
-For heap tokens, that is exactly what we want to know. Take:
-
-```
-c1 ← store(c0, counter.value, 1)
-...                                  -- anything that doesn't use c1
-c2 ← store(c1, counter.value, 2)
-```
-
-If the second store is the *only* use of `c1`, nothing ever observes the value `1`, so the first store is dead, and we know that without running any analysis.
-If something in between could read `counter.value`, it would have to take `counter_heap`, which would give `c1` a second use.
-We will meet this example again with real code.
-
-## Implementation
-
-The concrete experimental setting for this work is **Native Image**, the ahead-of-time compiler in GraalVM.
-Two of its parts matter to us:
-
-- a whole-program **points-to analysis**, which works out which objects each reference may point to, and along the way, which fields each method reads and writes;
-- the **Graal compiler**, which then compiles each method using Graal IR, a sea-of-nodes representation.
-
-I wrote a [separate post](/blog/2026/09/27/graal-memory/intro) about how Graal models memory, and I'll refer to it several times.
-The short version: Graal treats every call as if it could change *any* memory, and that blocks optimizations around calls.
-The obvious fix is to tell the compiler what a call actually changes.
-But the IR can only record what a call *writes*. Nothing in it can say what a call *reads* (well, there have been some attempts such as [TESA](https://github.com/oracle/graal/pull/12559)).
-Some optimizations, such as removing the dead store above, need exactly that, which is why we want both sides in the representation.
-In the following sections, I will provide insights of the implementation and discuss important decisions made along the way.
-
-## Exporting Native Image's Points-to Information
-
-Native Image runs its points-to analysis as one step of building an image.
-Starting from `main`, it works out:
-
-- which methods are **reachable**, meaning they might be invoked at run time;
-- for every call site, which methods it may **actually call**, even when the call is virtual;
-- the **type flows**: which types of objects may flow through each value in the program.
-
-Almost all of this is useful to us.
-From it, we export, for each method, the fields it reads, the fields it writes, and the methods it may call.
-
-### Where the export plugs in
-
-We don't need an image, only the analysis.
-Conveniently, the Graal repository also packages the points-to analysis as a *standalone* tool: the same analysis without the image build around it, running on an ordinary JVM against any classpath with a `main`.
-Our exporter is a small Java program that uses it as a library.
-It runs the analysis until it reaches its fixpoint, then walks the results and writes them out as JSON.
-Nothing inside Graal calls the exporter, and nothing has to: once the analysis returns, every fact is final, and we just read them.
-Exporting one of our examples takes a few seconds.
-
-### Which graph we export
-
-The analysis doesn't work on bytecode directly.
-It parses every reachable method into a Graal IR graph and builds its type flows from that graph.
-We export that same graph, rebuilt the same way, so that the graph and the facts agree: the callees attached to a call node are the ones the analysis found for exactly that call.
-
-Before building the type flows, the analysis tidies each graph up a little:
-
-- **canonicalization** folds constants and simplifies expressions;
-- **conditional elimination** removes conditions that are already known, mostly repeated null checks;
-- **partial escape analysis** removes allocations of objects that never escape the method.
-
-There is no inlining.
-The standalone analyzer doesn't inline anything before the analysis (a full Native Image build would inline small methods at this point), and none of the compiler's later phases run.
-A call in the source is still a call in the graph, and that's what we want: calls are where the interesting effects hide.
-
-Escape analysis has one visible consequence.
-An object that never escapes disappears completely, but one that does escape is only created at the point where it escapes, in a form our translation doesn't handle yet.
-It can be switched off with `-H:-EscapeAnalysisBeforeAnalysis`.
-
-### What we export
-
-The export has two parts.
-The first is the **facts**, for every reachable method, JDK included:
-
-```json
-"Examples.countInto(LExamples$Logger;LExamples$Link;)V": {
-  "reads": ["Examples$Link.next", "Examples$Logger.count"],
-  "writes": ["Examples$Logger.count"],
-  "callees": ["Examples.countInto(LExamples$Logger;LExamples$Link;)V"],
-  "allocates": false,
-  "unknown": [],
-  "unresolved": []
-}
-```
-
-Methods are named together with their JVM descriptor, so overloads stay apart: our examples have two `countInto`s, one for a `Counter` and one for a `Logger`.
-Besides reads, writes and callees, each method says whether it allocates, which of its memory effects can't be named by a field (a monitor, a `volatile` access, a fence), and which of its calls the analysis couldn't resolve.
-The signatures need all three, as we'll see.
-
-The second part is the **graphs** of the program's own methods.
-Graal IR is a sea of nodes with no fixed order, so we ask Graal to schedule each graph and export the result: basic blocks with their predecessors and successors, and in every block, its nodes in order.
-A call node carries what the analysis found out about it:
-
-```json
-{"id": 27, "op": "InvokeWithException", "args": [1, 25], "bci": 19,
- "target": "Examples.countInto(LExamples$Logger;LExamples$Link;)V",
- "callees": ["Examples.countInto(LExamples$Logger;LExamples$Link;)V"]}
-```
-
-Here `1` is `logger` and `25` is the load of `link.next`.
-Everything after this point, the signatures and the translation, works on this JSON alone.
-
-### Things we learned the hard way
-
-At first we exported facts only for the program's own methods.
-Then every constructor, and every method that creates an object, looked like it could touch anything, because every constructor calls `Object.<init>`, which had no facts.
-So now every reachable method gets facts, and the JDK's fields go into the rest of memory.
-
-The analysis records field accesses in its type flows, but only for the kinds of values it tracks, and `float` and `double` aren't among them.
-So the exporter also reads field loads and stores off each graph; otherwise a method that writes a `double` field would look like it writes nothing at all.
-
-And the analysis believes what it sees.
-`System.out` is set by native code, so as far as the analysis can tell, it is always `null`.
-It concludes that every `System.out.println` throws, and treats the code after it as unreachable.
-That's why the `println`s in our examples come last.
-
-## Heap Modelling & partitioning
-
-The simplest heap model is the one from the start of this post: a single `heap` token, threaded through every load, every store and every call.
-It is trivially sound, because nothing can ever be reordered, and it is exactly as pessimistic as that sounds.
-Every memory operation sits on one long chain, and every call is ordered against everything, which is more or less where Graal stands whenever it meets a call.
-To do better, we cut the heap into pieces.
-
-Cutting is only safe if the pieces really are separate.
-A partitioning is **sound** when every memory location belongs to *exactly one* partition.
-At least one, so that no store slips past the tokens unnoticed.
-And at most one, so that two operations on the same location can never end up on two different chains, where they would look independent and could be swapped.
-
-So how do we cut?
-The overview split the heap by class (`counter_heap`, `logger_heap`).
-The implementation goes one step finer and gives **every field of the program its own partition**, named by its declaring class and name: `Counter.value`, `Counter.other`, `Logger.count`.
-Fields are attractive because Java's type system already guarantees they are disjoint: `counter.value` and `logger.count` are different memory no matter which objects `counter` and `logger` point to.
-We don't have to ask the points-to analysis to know that, so we can't be misled by it either.
-(The ways around the type system, such as `Unsafe`, JNI and reflection, end up in code we treat as touching everything, as we'll see shortly.)
-The price is that all `Counter` objects share one partition: stores to `a.value` and `b.value` stay ordered even when `a` and `b` are different objects.
-Splitting further, say by allocation site, would make soundness depend on the points-to analysis being right.
-That's a story for another post.
-
-Arrays get one partition per element kind: `int[]`, `long[]`, `char[]` and so on, since an `int` element never lives in a `long[]`.
-There are two wrinkles.
-`boolean[]` and `byte[]` share a partition, because the JVM accesses both with the same instructions (`baload` and `bastore`).
-And all arrays of references share a single `Object[]` partition, because Java arrays are covariant: a `String[]` can be passed around as an `Object[]`, so a store through an `Object[]` may well land in a `String[]`.
-
-Everything else goes into one last partition, **the rest of memory**, written `*`.
-It holds the JDK's own fields (there are thousands of them, and what we care about is the program's), plus memory that no field names at all, like the allocator's bookkeeping.
-That's why an allocation touches `*`.
-
-Here is the dead store from the SSU section again, this time as real code:
+Here is what a cut buys:
 
 ```java
 static void deadStoreOtherField(Counter counter) {
@@ -263,52 +114,47 @@ static void deadStoreOtherField(Counter counter) {
 }
 ```
 
-With a single heap token, all three stores form one chain, and the heap produced by the first store is consumed by the store to `other`, which doesn't overwrite `value`.
-With a token per field, the chains come apart:
-
 ```
 v1 ← store(v0, counter.value, 1)
 o1 ← store(o0, counter.other, 7)
 v2 ← store(v1, counter.value, 2)
 ```
 
-The only use of `v1` is another store to the same field, so nothing can ever observe the `1`: the first store is dead.
+With one `heap`, the store to `other` sits between the two stores to `value`, and you'd have to look inside it.
+With a token per field, `v1` has one user: the next store to the same field.
+Nobody can observe the 1, and we can see that without running any analysis.
 
-### Computing method signatures
+## Use Every Token Once
 
-Loads and stores know their partition from the field they access.
-Calls are the interesting part.
-A call has to take the token of every partition the callee *might* touch, including everything the callee calls in turn.
-That set of partitions is the method's **signature**, and in Cthulhu it becomes the function's type: one heap token in and one out for each partition in the signature.
+Why not copy tokens around like any other value?
+Because then the chain would mean nothing: two operations taking the same `w0` would be two futures of one world.
+So a token is used **exactly once**, never copied and never dropped.
+Rust's borrow rules are a close relative: at any moment there is at most one `&mut` to a place.
 
-We compute signatures from the exported facts.
-Every method starts with the partitions its own field and array accesses touch.
-Then we keep adding the signatures of its callees, until nothing changes anymore.
-This is where the points-to analysis comes in after all: it provides the call graph, so a virtual call contributes every method it may dispatch to.
-Recursion is no problem.
-The sets only ever grow and there are finitely many partitions, so the iteration has to stop.
+We enforce this with **SSU**, *static single use* form.
+It is SSA with one extra rule: every value is *used* exactly once, not just defined once.
+An ordinary value, like an `int`, may be needed twice, but the program has to say so with an explicit `dup`.
+Tokens have no `dup`.
+So every token has exactly one user, and "who sees this value?" is answered by following one arrow.
+That is how we read the dead store above.
 
-Take a recursive method that counts the links of a list into a logger:
+Branches need one more rule.
+When an `if` splits the flow, the token goes into both arms.
+It isn't a copy, because only one arm runs, so it is a `fork`.
+When the arms merge, a `join` picks the token of whichever one ran, like a phi in SSA.
 
-```java
-static void countInto(Logger logger, Link link) {
-    if (link != null) {
-        logger.count++;
-        countInto(logger, link.next);
-    }
-}
-```
+## What a Call Takes
 
-It reads `Link.next` and reads and writes `Logger.count`, and its recursive call adds nothing new, so its signature is exactly those two partitions.
-A caller passes it those two tokens and nothing else:
+A load or store knows its piece from the field it touches.
+A call has to take the token of every piece the callee *might* touch, including everything the callee calls in turn.
+That set is the method's **signature**.
 
-```java
-static int forwardAcrossWritingCall(Counter counter, Logger logger, Link list) {
-    counter.value = 5;
-    countInto(logger, list);
-    return counter.value;
-}
-```
+We compute it by giving each method the pieces its own accesses touch, then adding its callees' signatures until nothing changes.
+Recursion is fine.
+The sets only grow, and there are finitely many pieces, so it must stop.
+
+`countInto` reads `Link.next`, and reads and writes `Logger.count`.
+Its recursive call adds nothing, so those two are its signature, and `demo` looks like this:
 
 ```
 v1     ← store(v0, counter.value, 5)
@@ -316,17 +162,92 @@ n1, l1 ← countInto(n0, l0, logger, list)   -- Link.next, Logger.count
 x, v2  ← load(v1, counter.value)
 ```
 
-The load takes `v1`, which comes straight from the store, so it must read `5`.
-That's store-to-load forwarding, read directly off the data flow.
-With one heap token, the call would sit between the store and the load, and we would have to load again.
+The load takes `v1`, straight from the store, so it must read 5.
+With one `heap`, the call would sit in between.
 
-Sometimes we simply don't know what a method does.
-It may call a native method, which has no bytecode and therefore no facts.
-The points-to analysis may have found no target for a call.
-Or the method may do something the facts can't express in terms of fields: enter a monitor, access a `volatile` field, issue a memory fence, or poke at memory through `Unsafe`.
-Monitors and volatiles don't write any particular field, but they order memory as other threads see it, so they have to stay ordered against everything.
-In all of these cases the method **touches everything**: it takes every token, and so does every method that calls it, directly or not.
-Unknown effects are never assumed absent.
-That keeps the signatures sound, though not always precise.
-And the precision is sobering: in a small test program whose reachable code, JDK included, has 1,734 methods, 1,034 of them still touch everything, mostly because somewhere down the call graph they reach a native method.
-Teaching the analysis what common natives actually do is high on the list.
+Sometimes we don't know what a method does.
+It may be native, the analysis may have found no target for a call, or the method may compute an identity hash or run a class initializer.
+Such a method **touches everything**, and so does everyone who calls it.
+Unknown is never assumed harmless.
+
+That is sound, and not very precise.
+In Are We Fast Yet (AWFY), a standard benchmark suite, 199 of the 459 methods of the program still touch everything.
+Even if identity hashes, class initialization and locks stopped counting as effects, only 12 of those would be freed, because the rest also reach unresolved calls, native code and raw writes.
+
+## Where the Facts Come From
+
+Nobody has to write a new whole-program analysis for this, because **Native Image** already runs one.
+It works out which methods are reachable, which methods each call may reach (even a virtual one), and which fields each method reads and writes.
+We read the answers out.
+
+A feature we added to Native Image does that for every reachable method, JDK included, and a separate tool computes the signatures.
+Then the build hands Graal a **kill set** on each call: the list of places that call may write.
+Where a call said `any()`, it now says `Logger.count`.
+Graal's own phases do the rest.
+
+Here is the twist.
+We first wrote rewrite rules that optimize directly on the token form.
+Given the same facts as kill sets, Graal's own phases removed at least as many loads, so the rules are archived.
+The tokens do the job they are good at: they explain why the facts are sound.
+The kill set is what we deliver.
+
+How do we know the facts are right?
+Every claim has a deliberately false twin.
+Tell the compiler that a method writes nothing when it does, and the program prints a wrong answer or hangs.
+Every false claim we tried broke its image, and every honest image printed what the JVM prints.
+
+## What About Threads?
+
+Everything above pretends there is one thread.
+With more, we assume the program has no data races.
+An **acquire** (entering a lock, reading a `volatile`) may let other threads' writes in, so Graal must not reuse a value it loaded before it.
+A **release** (leaving a lock, writing a `volatile`) lets this thread's writes out, so Graal must not drop a store because a later one overwrites it.
+
+Memory that only one thread can reach is exempt.
+A lock on such an object protects nothing, so it can go.
+Deciding which objects those are is called **thread escape**, and its claims have false twins too: say a shared lock is local, and updates get lost.
+
+Removing such a lock made it 16 to 19 times cheaper, and a `volatile` write 8 times.
+That is a micro-benchmark whose whole body is the lock, so don't read it as a speedup.
+On real programs, nothing is gained.
+AWFY has no lock of its own, and we could prove none local in javac at the default setting, in the 17,496 lock and `volatile` sites of PetClinic, or in the 11 servers of the Barista suite.
+
+## Something You Can Use Today
+
+You can do by hand what the kill set does for the compiler.
+A local variable is not memory, so no call can change it.
+The JDK does this in `ArrayList.forEach`:
+
+```java
+final Object[] es = elementData;
+final int size = this.size;
+for (int i = 0; modCount == expectedModCount && i < size; i++)
+    action.accept(elementAt(es, i));
+```
+
+`action.accept` could be any code, and a call Graal can't inline is assumed to write any memory.
+`es` and `size` are locals, so it can't touch them.
+I haven't measured how much this is worth on plain Graal, so I won't promise you a number.
+
+## What It Bought
+
+Loads first.
+On four small programs written to contain calls that write little, Graal leaves 12.5 to 32.5% fewer loads.
+On AWFY it leaves 4.2% fewer at the default optimization level and 2.1% fewer at `-O3`.
+
+Then time, and one clear win.
+Queens takes 25.7 to 27.8% less time in all fifteen `-O3` builds we timed.
+Its recursive `placeQueen` now writes only array elements, so four fields stop being reloaded in its loop (6 loads in loops become 0).
+Graal also inlines the recursion differently, and we never separated the two.
+At `-O2`, where Graal inlines less, the gain is 0.5%.
+
+Why not more?
+Most methods stay opaque, as above, and removing a load isn't the same as removing time.
+Native Image has no callee-saved registers, so a value kept across a call lives on the stack, a store and a load where the plain image would just reload the field.
+An image built to leave out every effect the facts can't name (unsound on purpose, as an upper bound) removes three times the loads, 6.7% against 2.1%, and isn't any faster.
+And code placement alone moves a benchmark by 4 to 13% with identical instructions, which is why we time twelve builds and not one.
+
+Kill sets also cost build time: 7 to 9% on AWFY, 13 to 15% on javac, and 44 to 55% on PetClinic.
+
+So the honest number is the suite's.
+Over twelve builds, AWFY came out 1.6% faster on average with kill sets, from 3.0% faster to 1.7% slower, and most of that is Queens.

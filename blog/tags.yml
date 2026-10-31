@@ -7,3 +7,8 @@ qthu:
   label: qthu
   permalink: /qthu
   description: A JavaScript-to-QuickJS-bytecode compiler toolchain built around Cthulhu, a linear, closures-as-basic-blocks intermediate language.
+
+what-did-that-call-touch:
+  label: What Did That Call Touch?
+  permalink: /what-did-that-call-touch
+  description: A series on what a compiler could do if it knew what each function call writes to memory.
